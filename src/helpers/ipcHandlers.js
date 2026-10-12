@@ -8790,6 +8790,16 @@ class IPCHandlers {
       };
     };
 
+    // A session being replaced must go quiet: a late final or socket error from
+    // it would land in the renderer as if it came from the live session.
+    const retireDictationStreaming = (streaming) => {
+      streaming.onPartialTranscript = null;
+      streaming.onFinalTranscript = null;
+      streaming.onError = null;
+      streaming.onSessionEnd = null;
+      streaming.disconnect({ commit: false }).catch(() => {});
+    };
+
     const DICTATION_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
     const ORUKEET_IDLE_TIMEOUT_MS = 60 * 1000;
 
@@ -8817,7 +8827,9 @@ class IPCHandlers {
 
     // What a dictation connection was opened for; a start or warmup reuses one
     // only when nothing about the route changed and, for a connection that reads
-    // a saved key, no key was saved since.
+    // a saved key, no key was saved since. OpenAI pins the language when the
+    // session is configured (BYOK session.update, or the cloud token request), so
+    // it is part of that route; the other providers never send it at connect.
     const dictationConnectionKey = (options) => {
       const provider = options.provider || "openai-realtime";
       const readsSavedKey = options.mode === "byok" || provider === "tinfoil-realtime";
@@ -8827,6 +8839,9 @@ class IPCHandlers {
         options.model,
         options.baseUrl,
         readsSavedKey ? credentialGeneration : null,
+        provider === "openai-realtime"
+          ? OpenAIRealtimeStreaming.normalizeLanguage(options.language)
+          : null,
       ]);
     };
 
@@ -8846,8 +8861,13 @@ class IPCHandlers {
       clearDictationIdleTimer();
       this._dictationPreviewEnabled = !!options.preview;
 
+      // The renderer is already streaming frames when a start redials (it wires
+      // the worklet before calling start), so the old session is retired without
+      // a wait, and without a commit where the client supports skipping it: a
+      // commit would only surface its head as a final from the wrong session.
+      // Frames that reached the old session before the start are dropped with it.
       if (this._dictationStreaming) {
-        await this._dictationStreaming.disconnect().catch(() => {});
+        retireDictationStreaming(this._dictationStreaming);
         this._dictationStreaming = null;
       }
 
@@ -8889,6 +8909,9 @@ class IPCHandlers {
           const apiKey = await fetchRealtimeToken(event, {
             mode: options.mode,
             provider,
+            // Cloud sessions are configured server-side when the secret is minted;
+            // the server also owns the managed model, so only the language is sent.
+            language: OpenAIRealtimeStreaming.normalizeLanguage(options.language) ?? undefined,
           });
           if (provider === "tinfoil-realtime") {
             const model = options.model || TINFOIL_REALTIME_MODEL;
@@ -8903,6 +8926,7 @@ class IPCHandlers {
             await streaming.connect({
               apiKey,
               model: options.model || "gpt-4o-mini-transcribe",
+              language: options.language,
               // OpenAI rejects rates below 24kHz; the 16kHz capture is upsampled instead.
               captureRate: 16000,
               preconfigured: isCloud,
