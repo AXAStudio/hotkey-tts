@@ -1444,6 +1444,12 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         return false;
       }
 
+      const activationGeneration = this._activationCaptureGeneration ?? 0;
+      if (
+        !(await this._beginActivationCapture()) ||
+        activationGeneration !== (this._activationCaptureGeneration ?? 0)
+      )
+        return false;
       const startRequestedAt = performance.now();
       prepared = forceDefaultMic ? null : await this.preparedMicCapture.take();
       const constraints =
@@ -1602,6 +1608,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
 
       return true;
     } catch (error) {
+      this._cancelActivationCapture(this._takeActivationCapture());
       // A prepared value the recording never adopted still owns a live stream
       // (and possibly a pre-roll recorder); release it before any retry.
       freshTap?.close();
@@ -1706,15 +1713,20 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     // Taken now, so a cancelled pipeline that settles late can't end the next
     // recording's spool.
     const spool = this._takeRecordingSpool();
+    const activationCapture = this._takeActivationCapture();
     try {
-      await this._finalizeBatchRecording(finalSegment);
+      if (activationCapture)
+        void window.electronAPI?.stopActivationCapture?.(activationCapture).catch(() => {});
+      await this._finalizeBatchRecording(finalSegment, activationCapture);
     } finally {
+      this._cancelActivationCapture(activationCapture);
       spool?.finish();
     }
   }
 
-  async _finalizeBatchRecording(finalSegment) {
+  async _finalizeBatchRecording(finalSegment, activationCapture = null) {
     const processingPipeline = this._startProcessingPipeline();
+    processingPipeline.activationCapture = activationCapture;
     const wasCancelled = () => this._shouldAbandonProcessingPipeline(processingPipeline);
     this.micRecovery.stop();
     this.teardownSpeechGate();
@@ -1913,6 +1925,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
   }
 
   cancelRecording() {
+    this._cancelActivationCapture(this._takeActivationCapture());
     this.micRecovery.stop();
     if (this._rotatingBatchRecorder) {
       this._cancelRequestedDuringMicRecovery = true;
@@ -2054,6 +2067,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
   }
 
   cancelProcessing() {
+    this._cancelActivationCapture(this._activeProcessingPipeline?.activationCapture);
     if (this.isProcessing) {
       this._processingCancellationGeneration = (this._processingCancellationGeneration ?? 0) + 1;
       this._requestStreamingCancellation();
@@ -2195,6 +2209,8 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       // Settles once the result is delivered and saved; the recording's spool
       // waits for it, so a main process that hangs on the paste or the save
       // can't take the audio with it.
+      await this._completeActivationCapture(pipeline.activationCapture, result);
+      if (wasCancelled()) return;
       pipeline.resultHandled = this.onTranscriptionComplete?.(result);
 
       if (result?.source === "openwhispr") {
@@ -4261,6 +4277,46 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     }
   }
 
+  async _beginActivationCapture() {
+    if (this._activationCapture || this.voiceAgentRequested) return true;
+    const generation = this._activationCaptureGeneration ?? 0;
+    try {
+      const id = await window.electronAPI?.beginActivationCapture?.();
+      if (generation !== (this._activationCaptureGeneration ?? 0)) {
+        this._cancelActivationCapture(id);
+        return false;
+      }
+      this._activationCapture = id;
+    } catch {
+      // Marketing capture must never interrupt dictation.
+    }
+    return generation === (this._activationCaptureGeneration ?? 0);
+  }
+
+  _takeActivationCapture() {
+    this._activationCaptureGeneration = (this._activationCaptureGeneration ?? 0) + 1;
+    const id = this._activationCapture;
+    this._activationCapture = null;
+    return id;
+  }
+
+  _cancelActivationCapture(id) {
+    if (id) void window.electronAPI?.cancelActivationCapture?.(id).catch(() => {});
+  }
+
+  async _completeActivationCapture(id, result) {
+    if (!id) return;
+    const words =
+      result?.success && !result.assistantConversation && !result.selectionEdit
+        ? countSpokenWords(result.rawText)
+        : 0;
+    try {
+      await window.electronAPI?.finishActivationCapture?.(id, words);
+    } catch {
+      // The main-process pending capture fences completeness after write failure.
+    }
+  }
+
   async saveTranscription(
     text,
     rawText = null,
@@ -4850,6 +4906,14 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       }
 
       this.stopRequestedDuringStreamingStart = false;
+      const activationGeneration = this._activationCaptureGeneration ?? 0;
+      if (
+        !(await this._beginActivationCapture()) ||
+        activationGeneration !== (this._activationCaptureGeneration ?? 0)
+      ) {
+        this._settleStreamingStart();
+        return false;
+      }
       sessionId = (this._streamingSessionGeneration || 0) + 1;
       this._streamingSessionGeneration = sessionId;
       this.streamingFallbackReason = null;
@@ -5103,6 +5167,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       return true;
     } catch (error) {
       const stopRequested = this.stopRequestedDuringStreamingStart;
+      this._cancelActivationCapture(this._takeActivationCapture());
       this._settleStreamingStart();
       this.stopRequestedDuringStreamingStart = false;
 
@@ -5218,7 +5283,9 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
 
     const sessionId = this._activeStreamingSessionId;
     const spool = this._takeRecordingSpool();
-    const delivery = {};
+    const delivery = { activationCapture: this._takeActivationCapture() };
+    if (delivery.activationCapture)
+      void window.electronAPI?.stopActivationCapture?.(delivery.activationCapture).catch(() => {});
     const stopPromise = this._finalizeStreamingRecording(sessionId, delivery);
     this._streamingStopPromise = stopPromise;
     this._streamingStopMode = "finalize";
@@ -5226,6 +5293,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       return await stopPromise;
     } finally {
       // The stop settles at delivery; the spool waits until the result is saved.
+      this._cancelActivationCapture(delivery.activationCapture);
       if (spool) void Promise.resolve(delivery.resultHandled).finally(() => spool.finish());
       if (this._streamingStopPromise === stopPromise) {
         this._streamingStopPromise = null;
@@ -5260,6 +5328,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
   }
 
   async cancelStreamingRecording() {
+    this._cancelActivationCapture(this._takeActivationCapture());
     if (this._streamingStopPromise) {
       if (this._streamingStopMode === "finalize") {
         this._requestStreamingCancellation();
@@ -5867,6 +5936,13 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         provider: batchFallbackResult?.source || `${providerName}-streaming`,
         model: batchFallbackResult ? null : streamingSttModel || null,
       };
+      if (wasCancelled()) return true;
+      await this._completeActivationCapture(delivery.activationCapture, {
+        success: true,
+        rawText: batchFallbackResult?.rawText ?? rawStreamingText,
+        assistantConversation: this.pendingAssistantConversation,
+        selectionEdit: this.pendingSelectionEdit,
+      });
       if (wasCancelled()) return true;
       delivery.resultHandled = this.onTranscriptionComplete?.({
         success: true,

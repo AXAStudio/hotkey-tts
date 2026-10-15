@@ -2122,7 +2122,13 @@ if (gotSingleInstanceLock) {
     }
     event.preventDefault();
     performSyncTeardown();
-    sidecarRegistry.shutdownAll().finally(() => app.exit(0));
+    Promise.allSettled([
+      sidecarRegistry.shutdownAll(),
+      Promise.race([
+        ipcHandlers?.metaActivation?.shutdown(),
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+      ]),
+    ]).finally(() => app.exit(0));
   });
 }
 
