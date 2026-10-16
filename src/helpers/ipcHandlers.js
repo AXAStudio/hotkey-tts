@@ -3250,6 +3250,9 @@ class IPCHandlers {
           mainWindow.showInactive();
         } else {
           mainWindow.blur();
+          // On Linux blur() leaves X focus on the pill, where the assistant panel
+          // took it, so the paste would land in the panel.
+          if (process.platform === "linux") this.windowManager.returnLinuxKeyboardFocus();
           await new Promise((resolve) => setTimeout(resolve, 80));
         }
       }
