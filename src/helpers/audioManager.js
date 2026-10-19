@@ -166,6 +166,7 @@ import {
   resolveManagedOrukeetRoute,
   resolveStreamingProviderName,
   buildStreamingSessionOptions,
+  isCloudMeteredStream,
   evaluateOrukeetLanguageRouting,
   hasOrukeetExperiment,
   ORUKEET_EXPERIMENT_CONFIG_TTL_MS,
@@ -703,6 +704,7 @@ class AudioManager {
     this._streamingCancellationGeneration = 0;
     this._activeTranscriptionAbortController = null;
     this._activeStreamingSessionId = null;
+    this._streamingMeteredByCloud = false;
     this._activeStreamingProviderName = null;
     this._activeStreamingConfig = null;
     this._activePipelineOptions = undefined;
@@ -5264,16 +5266,18 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       const result = await withSessionRefresh(async () => {
         const streamingSettings = getSettings();
         const { useLocalWhisper } = streamingSettings;
-        const res = await provider.start(
-          buildStreamingSessionOptions({
-            providerName,
-            settings: streamingSettings,
-            language: this.getEffectiveSttLanguage(streamingSettings),
-            keyterms: this.getKeyterms(),
-            voiceAgentRequested: this.voiceAgentRequested,
-            pipelineOptions: this._activePipelineOptions,
-          })
-        );
+        const sessionOptions = buildStreamingSessionOptions({
+          providerName,
+          settings: streamingSettings,
+          language: this.getEffectiveSttLanguage(streamingSettings),
+          keyterms: this.getKeyterms(),
+          voiceAgentRequested: this.voiceAgentRequested,
+          pipelineOptions: this._activePipelineOptions,
+        });
+        // Decided from the credentials this session opens with, so a mode
+        // switch before stop cannot move its words in or out of Cloud usage.
+        this._streamingMeteredByCloud = isCloudMeteredStream(sessionOptions);
+        const res = await provider.start(sessionOptions);
 
         return this.classifyStreamingStartResult(res, { useLocalWhisper });
       });
@@ -5764,6 +5768,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     );
 
     const stSettings = getSettings();
+    const meteredByCloud = this._streamingMeteredByCloud;
     const streamingSttModel = stopResult?.model || "nova-3";
     const streamingSttProcessingMs = Number.isFinite(orukeetFinal?.asrFinalMs)
       ? Math.round(orukeetFinal.asrFinalMs)
@@ -6202,7 +6207,10 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         ...(batchWarning ? { warning: batchWarning } : {}),
       });
 
-      if (!usedBatchFallback) {
+      // Only a stream on OpenWhispr Cloud credentials draws on the account's
+      // word allowance; opted-in history and insights sync push the local row
+      // of every other stream themselves.
+      if (!usedBatchFallback && meteredByCloud) {
         (async () => {
           try {
             await withSessionRefresh(async () => {
@@ -6224,14 +6232,6 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
                   // makes the row the server writes and the local one the same
                   // event. Held back until opt-in, a later sync would push the
                   // local copy under a second id and double every total.
-                  // Cosmetic caveat: the server labels its row mode
-                  // "openwhispr_cloud" whatever actually transcribed the audio,
-                  // and BYOK streaming reaches here too (tinfoil-realtime,
-                  // corti, openai-realtime — see resolveStreamingProviderName).
-                  // That row only exists when localDate rides along, which is
-                  // exactly when this device also pushes its own copy under the
-                  // same id, and last-write-wins replaces the label with the
-                  // real mode. Neither summary renders mode either way.
                   clientTranscriptionId,
                   ...(analyticsSyncEnabled()
                     ? {
@@ -6254,7 +6254,8 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
           }
           window.dispatchEvent(new Event("usage-changed"));
         })();
-      } else {
+      } else if (batchFallbackResult?.source === "openwhispr") {
+        // /api/transcribe recorded the Cloud upload's words.
         window.dispatchEvent(new Event("usage-changed"));
       }
 
