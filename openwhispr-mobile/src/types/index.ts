@@ -23,6 +23,9 @@ export interface UserConfig {
   // Set once a config follows Local Mode's OpenWhispr Cloud defaults for uploads and cleanup. New
   // installs start with it; older configs get it from localModeUpgradeConfig at launch.
   localModeUpgraded?: boolean;
+  // Set once note chat has its own selection, copied from the voice assistant's it used to share.
+  // New installs start with it; older configs get it from noteChatSplitConfig at launch.
+  noteChatSplit?: boolean;
   defaultMode: ProcessingMode;
   cleanupEnabled?: boolean;
   autoGenerateNoteTitle?: boolean;
@@ -46,7 +49,7 @@ export interface UserConfig {
   appleLocalIntelligenceEnabled?: boolean;
   // Dictation agent (cloud-only, default on)
   dictationAgentEnabled?: boolean;
-  // Note chat, which once shared dictationAgentEnabled's switch and follows it until set.
+  // Note chat, which once shared dictationAgentEnabled's switch (saved apart by noteChatSplitConfig).
   noteChatEnabled?: boolean;
   dictationAgentName?: string;
   dictationAgentShareContext?: boolean;
