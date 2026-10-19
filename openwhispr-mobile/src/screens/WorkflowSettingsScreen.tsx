@@ -52,14 +52,18 @@ import {
   cloudAccessFor,
   cloudCleanupNeedsAccount,
   parseWorkflow,
-  unsetSelection,
+  workflowSelection,
   workflowSwitchedOff,
 } from '@/lib/aiWorkflows';
 import { isLocalModelKey } from '@/lib/localModelCatalog';
 import { getDictationAgentName } from '@/lib/dictationAgent';
 import { safeHaptics } from '@/lib/utils';
 import { SystemIcon, type LucideIconName } from '@/components/ui/SystemIcon';
-import { type ModeSwitchResult, switchWorkflowMode } from '@/lib/workflowModeSwitch';
+import {
+  leavingLocalModeWithLocalReasoning,
+  type ModeSwitchResult,
+  switchWorkflowMode,
+} from '@/lib/workflowModeSwitch';
 import { getPrivateModeReadiness } from '@/lib/privateMode';
 import {
   getLocalReasoningReadiness,
@@ -303,8 +307,7 @@ function WorkflowSettings({ scope }: { scope: MobileInferenceScope }): React.JSX
   const setActiveMode = useProcessingModeStore((state) => state.setActiveMode);
   const activeMode = useProcessingModeStore((state) => state.activeMode);
   const cloudAccess = useAuthStore((state) => cloudAccessFor(state.user));
-  const storedSelection =
-    config?.inference?.[scope] ?? unsetSelection(scope, activeMode, cloudAccess);
+  const storedSelection = workflowSelection(config, scope, activeMode, cloudAccess);
   // Local Mode runs dictation on this phone whatever is saved, so a saved Cloud dictation (a guest
   // held in Local Mode) shows as On-Device (Automatic), which is what runs.
   const lockedByPrivateMode =
@@ -537,8 +540,9 @@ function WorkflowSettings({ scope }: { scope: MobileInferenceScope }): React.JSX
       );
       return;
     }
-    // Tapping the shown mode saves it when nothing of the user's own is saved, since an unsaved
-    // default follows the mode and the account (unsetSelection), and a pin is released with them.
+    // Tapping the shown mode saves it as the user's own when nothing of theirs is saved, since an
+    // unsaved default follows the mode and the account (unsetSelection), and onboarding releases a
+    // pin.
     const ownChoice = !!config?.inference?.[scope] && !config.pinnedInference?.includes(scope);
     if (mode === savedSelection.mode && ownChoice) {
       setSelection(savedSelection);
@@ -653,8 +657,20 @@ function WorkflowSettings({ scope }: { scope: MobileInferenceScope }): React.JSX
     try {
       const saved = await prepareSelection();
       if (!saved) return;
+      const localReasoningReady = await leavingLocalModeWithLocalReasoning(
+        scope,
+        activeMode,
+        saved.mode,
+      );
       await updateConfig(
-        workflowSaveConfig(useConfigStore.getState().config, scope, saved, activeMode, cloudAccess),
+        workflowSaveConfig(
+          useConfigStore.getState().config,
+          scope,
+          saved,
+          activeMode,
+          cloudAccess,
+          localReasoningReady,
+        ),
       );
       if (useConfigStore.getState().error) {
         showError('Unable to save your selection. Please try again.');

@@ -1,4 +1,10 @@
-import { unsetSelection, workflowSummary } from '@/lib/aiWorkflows';
+import {
+  cleanupRunsOnDevice,
+  cloudCleanupNeedsAccount,
+  unsetSelection,
+  workflowSelection,
+  workflowSummary,
+} from '@/lib/aiWorkflows';
 import type { UserConfig } from '@/types';
 
 function config(overrides: Partial<UserConfig> = {}): UserConfig {
@@ -51,6 +57,59 @@ describe('workflowSummary for Text Cleanup', () => {
       expect(
         workflowSummary({ ...saved, defaultMode: 'cloud' }, 'cleanup', 'cloud', { cloudAccess }),
       ).toBe('OpenWhispr Cloud');
+    },
+  );
+
+  // A Cloud cleanup held automatically when dictation left Cloud isn't the user's own choice, so
+  // where Local Mode can't run it there, it cleans on this phone like an unsaved one.
+  it.each(['session', 'none'] as const)(
+    'cleans on this phone for a Cloud cleanup held automatically, with %s access',
+    (cloudAccess) => {
+      const held = config({
+        inference: { cleanup: { mode: 'openwhispr' } },
+        pinnedInference: ['cleanup'],
+      });
+      expect(workflowSummary(held, 'cleanup', 'private', { cloudAccess })).toBe('On-Device');
+      expect(cleanupRunsOnDevice(held, 'private', cloudAccess)).toBe(true);
+      expect(cloudCleanupNeedsAccount(held, 'private', cloudAccess)).toBe(false);
+      expect(workflowSelection(held, 'cleanup', 'cloud', cloudAccess)).toEqual({
+        mode: 'openwhispr',
+      });
+    },
+  );
+
+  it('keeps a Cloud cleanup held automatically on Cloud for a signed-in account', () => {
+    const held = config({
+      inference: { cleanup: { mode: 'openwhispr' } },
+      pinnedInference: ['cleanup'],
+    });
+    expect(workflowSummary(held, 'cleanup', 'private', { cloudAccess: 'account' })).toBe(
+      'OpenWhispr Cloud',
+    );
+    expect(cleanupRunsOnDevice(held, 'private', 'account')).toBe(false);
+  });
+
+  // Bring Your Own Key dictation also needs the separate Cloud pass, whether the user saved Cloud
+  // or a dictation change held it there.
+  it.each([
+    ['saved', []],
+    ['held automatically', ['cleanup']],
+  ] as const)(
+    'skips a %s Cloud cleanup under Bring Your Own Key without an account',
+    (_label, pins) => {
+      const byok = config({
+        defaultMode: 'providers',
+        inference: { cleanup: { mode: 'openwhispr' } },
+        pinnedInference: [...pins],
+      });
+      for (const cloudAccess of ['session', 'none'] as const) {
+        expect(workflowSummary(byok, 'cleanup', 'providers', { cloudAccess })).toBe(
+          'Skipped · Sign in',
+        );
+      }
+      expect(workflowSummary(byok, 'cleanup', 'providers', { cloudAccess: 'account' })).toBe(
+        'OpenWhispr Cloud',
+      );
     },
   );
 
@@ -152,6 +211,40 @@ describe('workflowSummary for Uploads', () => {
     expect(workflowSummary(saved, 'dictation', 'private', { cloudAccess: 'account' })).toBe(
       'On-Device',
     );
+  });
+});
+
+// A Cloud selection held when dictation left another mode runs as if unsaved in Local Mode, where
+// the default already uses Cloud wherever the user's access lets it.
+describe('workflowSelection in Local Mode for a Cloud hold', () => {
+  const heldOnCloud = (scope: 'upload' | 'notes' | 'noteChat'): UserConfig =>
+    config({ inference: { [scope]: { mode: 'openwhispr' } }, pinnedInference: [scope] });
+
+  it.each([
+    ['none', 'local'],
+    ['session', 'openwhispr'],
+    ['account', 'openwhispr'],
+  ] as const)('runs an upload with %s access on %s', (cloudAccess, mode) => {
+    expect(workflowSelection(heldOnCloud('upload'), 'upload', 'private', cloudAccess)).toEqual({
+      mode,
+    });
+    expect(workflowSelection(heldOnCloud('upload'), 'upload', 'cloud', cloudAccess)).toEqual({
+      mode: 'openwhispr',
+    });
+  });
+
+  it('formats notes on this phone and keeps note chat on Cloud', () => {
+    expect(workflowSelection(heldOnCloud('notes'), 'notes', 'private', 'account')).toEqual({
+      mode: 'local',
+    });
+    expect(workflowSelection(heldOnCloud('noteChat'), 'noteChat', 'private', 'none')).toEqual({
+      mode: 'openwhispr',
+    });
+  });
+
+  it('keeps a Cloud upload the user saved', () => {
+    const saved = config({ inference: { upload: { mode: 'openwhispr' } } });
+    expect(workflowSelection(saved, 'upload', 'private', 'none')).toEqual({ mode: 'openwhispr' });
   });
 });
 
