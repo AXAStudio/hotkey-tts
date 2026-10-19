@@ -68,3 +68,15 @@ it('switches only the voice assistant, keeping note chat as it was', () => {
   fireEvent(screen.UNSAFE_getAllByType(Switch)[0], 'valueChange', false);
   expect(mockUpdateConfig).toHaveBeenCalledWith({ dictationAgentEnabled: false });
 });
+
+// The voice assistant is the keyboard's compose wand; saying its name while dictating gives no
+// command.
+it('describes the wand, not a spoken command', () => {
+  render(<DictationAgentScreen />);
+  expect(screen.getByText(/Tap the wand on the OpenWhispr keyboard/)).toBeTruthy();
+  expect(screen.getByText(/Saying its name while dictating gives no command/)).toBeTruthy();
+  // The switch reads off wherever the assistant can't run, though the keyboard still shows the
+  // wand there (dimmed in Local Mode), so it describes using the wand rather than showing it.
+  expect(screen.getByText('Use the wand on the OpenWhispr keyboard.')).toBeTruthy();
+  expect(screen.queryByText(/rewrites what you said/)).toBeNull();
+});
