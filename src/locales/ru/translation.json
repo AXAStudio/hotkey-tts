@@ -875,8 +875,11 @@
         "apikeyHelp": "API-ключ Vertex AI Express Mode из Google AI Studio."
       }
     },
+    "modelRetiredTitle": "Модель больше недоступна",
+    "groq": {
+      "modelRetired": "Groq прекратил поддержку {{from}}. Выполнен переход на {{to}}."
+    },
     "tinfoil": {
-      "modelRetiredTitle": "Модель больше недоступна",
       "modelRetired": "Tinfoil прекратил поддержку {{from}}. Выполнен переход на {{to}}.",
       "refreshingModels": "Обновление моделей…"
     },
@@ -2704,8 +2707,6 @@
         "groq_openai_gpt_oss_120b": "Открытая флагманская модель OpenAI, 500 т/с",
         "groq_qwen_qwen3_8_27b": "Быстрая модель Qwen, 450 т/с, контекст 131K",
         "groq_openai_gpt_oss_20b": "Быстрая открытая модель, 1000 т/с",
-        "groq_compound": "Система Compound от Groq, 450 т/с",
-        "groq_compound_mini": "Быстрая система Compound, 3x ниже задержка",
         "openai_gpt_6_astra": "Самая мощная модель OpenAI для программирования и исследований",
         "openai_gpt_5_6_sol": "Флагманская GPT-5.6 для сложного программирования и исследований",
         "openai_gpt_5_6_terra": "Сбалансированная GPT-5.6 для повседневной работы",

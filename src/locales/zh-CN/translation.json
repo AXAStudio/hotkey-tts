@@ -875,8 +875,11 @@
         "apikeyHelp": "从 Google AI Studio 获取的 Vertex AI Express Mode API 密钥。"
       }
     },
+    "modelRetiredTitle": "模型已不可用",
+    "groq": {
+      "modelRetired": "Groq 已停用 {{from}}，已切换至 {{to}}。"
+    },
     "tinfoil": {
-      "modelRetiredTitle": "模型已不可用",
       "modelRetired": "Tinfoil 已停用 {{from}}，已切换至 {{to}}。",
       "refreshingModels": "正在刷新模型…"
     },
@@ -2688,8 +2691,6 @@
         "groq_openai_gpt_oss_120b": "OpenAI 开源旗舰，500 T/秒",
         "groq_qwen_qwen3_8_27b": "快速 Qwen 模型，450 T/秒，131K 上下文",
         "groq_openai_gpt_oss_20b": "快速开源模型，1000 T/秒",
-        "groq_compound": "Groq Compound 系统，450 T/秒",
-        "groq_compound_mini": "快速 Compound 系统，3x 更低延迟",
         "openai_gpt_6_astra": "OpenAI 最强大的模型，适用于编码与研究",
         "openai_gpt_5_6_sol": "旗舰 GPT-5.6，适用于复杂编码与研究",
         "openai_gpt_5_6_terra": "均衡的 GPT-5.6，适合日常工作",

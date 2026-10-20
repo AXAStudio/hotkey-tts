@@ -875,8 +875,11 @@
         "apikeyHelp": "Vertex AI Express Mode API key from Google AI Studio."
       }
     },
+    "modelRetiredTitle": "Model no longer available",
+    "groq": {
+      "modelRetired": "Groq retired {{from}}. Switched to {{to}}."
+    },
     "tinfoil": {
-      "modelRetiredTitle": "Model no longer available",
       "modelRetired": "Tinfoil retired {{from}}. Switched to {{to}}.",
       "refreshingModels": "Refreshing models…"
     },
@@ -2786,8 +2789,6 @@
         "groq_openai_gpt_oss_120b": "OpenAI's open-source flagship, 500 T/sec",
         "groq_qwen_qwen3_8_27b": "Fast Qwen model, 450 T/sec, 131K context",
         "groq_openai_gpt_oss_20b": "Fast open-source model, 1000 T/sec",
-        "groq_compound": "Groq's compound system, 450 T/sec",
-        "groq_compound_mini": "Fast compound system, 3x lower latency",
         "openai_gpt_6_astra": "OpenAI's most capable model for coding and research",
         "openai_gpt_5_6_sol": "Flagship GPT-5.6 for complex coding and research",
         "openai_gpt_5_6_terra": "Balanced GPT-5.6 for everyday work",

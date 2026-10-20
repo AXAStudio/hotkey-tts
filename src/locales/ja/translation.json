@@ -875,8 +875,11 @@
         "apikeyHelp": "Google AI Studio で取得した Vertex AI Express Mode の API キー。"
       }
     },
+    "modelRetiredTitle": "モデルが利用できません",
+    "groq": {
+      "modelRetired": "Groq は {{from}} を提供終了しました。{{to}} に切り替えました。"
+    },
     "tinfoil": {
-      "modelRetiredTitle": "モデルが利用できません",
       "modelRetired": "Tinfoil は {{from}} を提供終了しました。{{to}} に切り替えました。",
       "refreshingModels": "モデルを更新しています…"
     },
@@ -2688,8 +2691,6 @@
         "groq_openai_gpt_oss_120b": "OpenAI のオープンソースフラッグシップ、500 T/秒",
         "groq_qwen_qwen3_8_27b": "高速 Qwen モデル、450 T/秒、131K コンテキスト",
         "groq_openai_gpt_oss_20b": "高速オープンソースモデル、1000 T/秒",
-        "groq_compound": "Groq の Compound システム、450 T/秒",
-        "groq_compound_mini": "高速 Compound システム、3x 低レイテンシー",
         "openai_gpt_6_astra": "コーディングと研究のための OpenAI の最も高性能なモデル",
         "openai_gpt_5_6_sol": "複雑なコーディングと研究のためのフラッグシップ GPT-5.6",
         "openai_gpt_5_6_terra": "日常業務向けのバランス型 GPT-5.6",
