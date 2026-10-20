@@ -3,6 +3,7 @@ import type { ReasoningConfig } from "../services/BaseReasoningService";
 import type { PermissionGuideState, PermissionGuideAction } from "./permissionGuide";
 import type { TinfoilCatalogModel } from "../models/tinfoilModels";
 import type { UsageResponse } from "../lib/usageStore";
+import type { DictationTone, ToneAppCategory } from "../config/toneStyle";
 import type { OrgPolicy } from "./policy";
 import type { TechnicalErrorDetailsData } from "../components/ui/useToast";
 import type { ProviderSettingsTarget } from "../utils/describeProviderError";
@@ -101,6 +102,8 @@ export interface DictationRealtimeSessionOptions {
     agentName?: string;
     customDictionary?: string[];
     customPrompt?: string;
+    tone?: DictationTone;
+    appCategory?: ToneAppCategory;
     language?: string;
     locale?: string;
   };
@@ -1441,6 +1444,7 @@ declare global {
       showDictationPanel: () => Promise<void>;
       openSettingsSection?: (section: ProviderSettingsTarget) => Promise<{ success: boolean }>;
       captureDictationTarget?: () => Promise<{ success: boolean; pid: number | null }>;
+      captureDictationAppCategory?: () => Promise<ToneAppCategory>;
       onToggleDictation: (callback: () => void) => () => void;
       onToggleVoiceAgent?: (callback: () => void) => () => void;
       onToggleTranslation?: (callback: () => void) => () => void;
@@ -2667,6 +2671,8 @@ declare global {
           promptMode?: "cleanup" | "agent";
           purpose?: CloudReasonPurpose;
           screenContext?: ScreenContextImage;
+          tone?: DictationTone;
+          appCategory?: ToneAppCategory;
           language?: string;
           locale?: string;
           streamingFallbackReason?: string;
