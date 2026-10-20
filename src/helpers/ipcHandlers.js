@@ -8062,7 +8062,10 @@ class IPCHandlers {
     let meetingLocalProvider = null;
     let meetingLocalModel = null;
     let meetingLocalLanguage = null;
-    let meetingLocalTranscribing = false;
+    // The pass that is transcribing buffered audio, if any. Stop and rollback
+    // await it: a pass that finished after the reset would push its finals into
+    // the next session and send them to no window.
+    let meetingLocalTranscribePromise = null;
     let meetingPendingMicChunks = [];
     let meetingPendingMicFinals = [];
     let meetingPendingMicFinalTimer = null;
@@ -8607,15 +8610,25 @@ class IPCHandlers {
       }
     };
 
-    const transcribeAllLocalBuffers = async () => {
-      if (meetingLocalTranscribing) return;
-      meetingLocalTranscribing = true;
-      try {
-        await transcribeLocalMeetingChunk("system");
-        await transcribeLocalMeetingChunk("mic");
-      } finally {
-        meetingLocalTranscribing = false;
+    const transcribeAllLocalBuffers = () => {
+      if (meetingLocalTranscribePromise) return meetingLocalTranscribePromise;
+      meetingLocalTranscribePromise = (async () => {
+        try {
+          await transcribeLocalMeetingChunk("system");
+          await transcribeLocalMeetingChunk("mic");
+        } finally {
+          meetingLocalTranscribePromise = null;
+        }
+      })();
+      return meetingLocalTranscribePromise;
+    };
+
+    const settleLocalMeetingTranscription = async () => {
+      if (meetingLocalTimer) {
+        clearInterval(meetingLocalTimer);
+        meetingLocalTimer = null;
       }
+      await meetingLocalTranscribePromise?.catch(() => {});
     };
 
     const dropMeetingMicDiarizationCapture = () => {
@@ -8668,7 +8681,6 @@ class IPCHandlers {
       meetingLocalProvider = null;
       meetingLocalModel = null;
       meetingLocalLanguage = null;
-      meetingLocalTranscribing = false;
       meetingPendingMicChunks = [];
       resetPendingMicFinals();
       meetingAecEnabled = false;
@@ -8910,8 +8922,10 @@ class IPCHandlers {
       }
       await stopMeetingAec();
       await stopLiveSpeakerIdentification().catch(() => {});
-      resetMeetingLocalState();
+      // Late finals from either path must land before the reset clears them.
+      await settleLocalMeetingTranscription();
       await disconnectMeetingStreaming().catch(() => {});
+      resetMeetingLocalState();
       this.activeMeetingSpeakerConfig = null;
     };
 
@@ -9195,6 +9209,9 @@ class IPCHandlers {
       // scoped stop/auto-end matching.
       const recordingSessionId = options.sessionId;
       meetingStartedAt = Date.now();
+      // Stop captures and clears the segments, but a stop that fails partway
+      // (the audio tap won't stop) never gets there.
+      meetingDiarizationSegments = [];
       meetingConnectionOptions = options;
       meetingConnectionWin = BrowserWindow.fromWebContents(event.sender);
       meetingReconnectCount = 0;
@@ -9645,11 +9662,8 @@ class IPCHandlers {
         const diarizationWin = meetingLocalWin || this.windowManager.controlPanelWindow;
 
         if (meetingLocalMode) {
-          if (meetingLocalTimer) {
-            clearInterval(meetingLocalTimer);
-            meetingLocalTimer = null;
-          }
           try {
+            await settleLocalMeetingTranscription();
             await transcribeAllLocalBuffers();
           } catch (err) {
             debugLogger.error("Local meeting final transcription failed", { error: err.message });
