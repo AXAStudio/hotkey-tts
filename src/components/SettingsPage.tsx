@@ -1384,8 +1384,6 @@ export default function SettingsPage({
     isWlroots: boolean;
     isCosmic: boolean;
     requiresWlCopy: boolean;
-    hasXclip: boolean;
-    hasXsel: boolean;
     isNixOS: boolean;
   } | null>(null);
   const [ydotoolGuideKey, setYdotoolGuideKey] = useState<string | null>(null);
@@ -3812,35 +3810,12 @@ EOF`,
                     },
                   ];
 
-                  if (ydotoolStatus.isKde) {
-                    checks.push({
-                      key: "hasXclip",
-                      label: "xclip",
-                      ok: ydotoolStatus.hasXclip || ydotoolStatus.hasXsel || false,
-                      required: true,
-                      desc: t("settingsPage.general.waylandPaste.xclipDesc", {
-                        defaultValue: "Clipboard tool for KDE Wayland paste (xclip or xsel)",
-                      }),
-                      steps: [
-                        {
-                          title: t("settingsPage.general.waylandPaste.guide.xclip.step1Title", {
-                            defaultValue: "Install xclip",
-                          }),
-                          cmds: [
-                            { cmd: "sudo dnf install xclip  # Fedora" },
-                            { cmd: "sudo apt install xclip  # Debian/Ubuntu" },
-                          ],
-                        },
-                      ],
-                    });
-                  }
-
-                  if (ydotoolStatus.requiresWlCopy) {
+                  if (ydotoolStatus.requiresWlCopy || ydotoolStatus.isKde) {
                     checks.push({
                       key: "hasWlCopy",
                       label: "wl-copy",
                       ok: ydotoolStatus.hasWlCopy,
-                      required: true,
+                      required: ydotoolStatus.requiresWlCopy || ydotoolStatus.isKde,
                       desc: t("settingsPage.general.waylandPaste.wlCopyDesc"),
                       steps: [
                         {
