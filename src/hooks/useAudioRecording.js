@@ -222,10 +222,9 @@ export const useAudioRecording = (toast, options = {}) => {
           audioManagerRef.current.beginSelectionCapture();
         }
 
-        // Tone & Style names the app being dictated into while the user speaks;
-        // only plain dictation cleanup uses it.
-        const { toneStyleEnabled, useCleanupModel } = getSettings();
-        if (toneStyleEnabled && useCleanupModel && !voiceAgentRequested && !translationRequested) {
+        // Tone & Style names the app being dictated into while the user speaks,
+        // for cleanup and for an assistant answer typed or edited in place there.
+        if (getSettings().toneStyleEnabled && !translationRequested) {
           audioManagerRef.current.beginToneStyleCapture();
         }
 
@@ -668,6 +667,7 @@ export const useAudioRecording = (toast, options = {}) => {
               selectedContext,
               deliverySessionId,
               deliveryAcceptsMarkdown,
+              deliveryAppCategory,
             } = result.assistantConversation;
             const command = {
               text: expandSnippets(transcript, getSettings().snippets),
@@ -693,6 +693,7 @@ export const useAudioRecording = (toast, options = {}) => {
                   autoPasteEnabled,
                   deliverySessionId,
                   acceptsMarkdown: deliveryAcceptsMarkdown,
+                  appCategory: deliveryAppCategory,
                   restoreClipboard: !keepTranscriptionInClipboard,
                   allowClipboardFallback: isAccessibilitySkipped(),
                 }),
