@@ -28,6 +28,7 @@ import {
   type InferenceScope,
   type InferenceScopeDefinition,
   type InferenceScopeStoreKeys,
+  usesCloudModelCatalog,
 } from "../config/inferenceScopes";
 import { normalizeChineseScriptPreference } from "../utils/chineseScript";
 import { adjustBedrockModelForRegion } from "../utils/bedrockRegions";
@@ -149,7 +150,7 @@ function canonicalTranscriptionBaseUrl(providerId: string): string | null {
   );
 }
 
-function reasoningModelBelongsToProvider(providerId: string, modelId: string): boolean {
+export function reasoningModelBelongsToProvider(providerId: string, modelId: string): boolean {
   if (!modelId) return false;
   // Custom and OpenRouter ids are free-form; any remembered id is valid.
   // Tinfoil's registry entry is refreshed in place from its live catalog.
@@ -853,7 +854,13 @@ function migrateRetiredCloudModels() {
   if (!isBrowser) return;
   const swept = sweepRetiredCloudModelSelections(
     localStorage,
-    Object.values(INFERENCE_SCOPES).map(({ storeKeys }) => storeKeys)
+    Object.values(INFERENCE_SCOPES)
+      .map(({ storeKeys }) => storeKeys)
+      .filter(({ mode }) => {
+        const storedMode = localStorage.getItem(mode);
+        // An unset mode loads as the default, openwhispr.
+        return !storedMode || usesCloudModelCatalog(storedMode);
+      })
   );
   if (swept.length === 0) return;
 
@@ -3229,6 +3236,7 @@ export async function reconcileLocalModelSelections(): Promise<void> {
 export function reconcileRetiredCloudModelSelections(): void {
   const state = useSettingsStore.getState() as unknown as Record<string, unknown>;
   for (const scope of Object.values(INFERENCE_SCOPES)) {
+    if (!usesCloudModelCatalog(state[scope.storeKeys.mode])) continue;
     const provider = state[scope.storeKeys.provider] as string;
     const model = state[scope.storeKeys.model] as string;
     if (!provider || !model || provider === "tinfoil") continue;

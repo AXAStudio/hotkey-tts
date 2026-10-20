@@ -25,15 +25,11 @@ import {
   type InferenceScope,
   type InferenceScopeDefinition,
 } from "../../config/inferenceScopes";
-import {
-  isProviderValidForMode,
-  getCloudModel,
-  getLocalModel,
-  enterpriseProviderName,
-} from "../../models/ModelRegistry";
+import { getCloudModel, getLocalModel, enterpriseProviderName } from "../../models/ModelRegistry";
 import { AUTO_REASONING_EFFORT, isReasoningEffortSupported } from "../../models/reasoningEffort";
 import { selectableReasoningEffort } from "../../services/ai/chatRequestBody";
 import { useManagedScopeResolution } from "../../stores/enterpriseIdentityStore";
+import { modeSwitchPatch } from "../../utils/llmModeSwitch";
 import { requestSignIn } from "../../utils/requestSignIn";
 import TestConnectionButton from "../TestConnectionButton";
 import { getEnterpriseCallSettings } from "../../services/ai/enterpriseSettings";
@@ -147,18 +143,13 @@ export default function InferenceConfigEditor({
       }
       if (mode === effectiveMode) return;
 
-      const patch: Parameters<typeof setResolvedLLMConfig>[1] = {
-        mode,
-        cloudMode: mode === "openwhispr" ? "openwhispr" : "byok",
-      };
-      if (!isProviderValidForMode(config.provider, mode)) {
-        patch.provider = "";
-        patch.model = "";
-      }
-      setResolvedLLMConfig(scope, patch);
+      setResolvedLLMConfig(
+        scope,
+        modeSwitchPatch({ provider: config.provider, model: config.model }, mode)
+      );
       onModeChange?.(mode);
     },
-    [scope, config.provider, effectiveMode, isSignedIn, onModeChange, isModeAllowed]
+    [scope, config.provider, config.model, effectiveMode, isSignedIn, onModeChange, isModeAllowed]
   );
 
   const setMode = setField("mode");
