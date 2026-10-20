@@ -9,6 +9,7 @@ import { cn } from "../lib/utils";
 import { MAX_SPEAKER_COUNT } from "../../constants/speakerDetection.json";
 import type { TranscriptSegment } from "../../stores/meetingRecordingStore";
 import {
+  isSelfSideSegment,
   isTranscriptSpeakerLocked,
   resolveSegmentSpeakerName,
   type TranscriptSpeakerStatus,
@@ -812,13 +813,15 @@ export function MeetingTranscriptChat({
 
   // Per-segment derivations hoisted out of the row map: rows receive them as
   // stable props, so partial ticks (which change neither input) skip every row.
+  const youLabel = t("notes.speaker.you");
   const rowMeta = useMemo(
     () =>
       segments.map((segment) => ({
         key: getEffectiveSpeakerKey(segment, speakerMappings),
         activeName: resolveSegmentSpeakerName(segment, speakerMappings),
+        selfSide: isSelfSideSegment(segment, speakerMappings, youLabel),
       })),
-    [segments, speakerMappings]
+    [segments, speakerMappings, youLabel]
   );
 
   const colorByKey = useMemo(() => {
@@ -826,7 +829,8 @@ export function MeetingTranscriptChat({
     let nextIdx = 0;
     segments.forEach((segment, i) => {
       if (segment.source === "mic" && !segment.speaker) return;
-      if (segment.speaker === "you") return;
+      // Bubbles on the user's side aren't colored, so they take no slot.
+      if (rowMeta[i].selfSide) return;
       const key = rowMeta[i].key;
       if (!map.has(key)) {
         map.set(key, nextIdx % SPEAKER_COLORS.length);
@@ -858,14 +862,6 @@ export function MeetingTranscriptChat({
       </div>
     );
   }
-
-  const isSelfSide = (segment: TranscriptSegment): boolean => {
-    const mapped = segment.speaker ? speakerMappings?.[segment.speaker] : undefined;
-    if (mapped) return mapped.trim().toLowerCase() === t("notes.speaker.you").toLowerCase();
-    if (segment.speaker === "you") return true;
-    if (segment.speakerName) return false;
-    return segment.source === "mic";
-  };
 
   const showAssumedHint =
     !isDiarizing &&
@@ -969,9 +965,8 @@ export function MeetingTranscriptChat({
             {virtualizer.getVirtualItems().map((virtualItem) => {
               const i = virtualItem.index;
               const segment = segments[i];
-              const selfSide = isSelfSide(segment);
+              const { key, activeName, selfSide } = rowMeta[i];
               const isSystemSpeaker = !!segment.speaker && !selfSide;
-              const { key, activeName } = rowMeta[i];
               return (
                 <div
                   key={segment.id}
@@ -989,7 +984,9 @@ export function MeetingTranscriptChat({
                   <SegmentRow
                     segment={segment}
                     selfSide={selfSide}
-                    sameSpeaker={i > 0 && rowMeta[i - 1].key === key}
+                    sameSpeaker={
+                      i > 0 && rowMeta[i - 1].key === key && rowMeta[i - 1].selfSide === selfSide
+                    }
                     isFirst={i === 0}
                     isNewest={i === segments.length - 1}
                     colorIdx={isSystemSpeaker ? (colorByKey.get(key) ?? 0) : 0}
