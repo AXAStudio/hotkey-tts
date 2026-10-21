@@ -25,9 +25,10 @@ import {
   type InferenceScope,
   type InferenceScopeDefinition,
 } from "../../config/inferenceScopes";
-import { getCloudModel, getLocalModel, enterpriseProviderName } from "../../models/ModelRegistry";
+import { enterpriseProviderName } from "../../models/ModelRegistry";
 import { AUTO_REASONING_EFFORT, isReasoningEffortSupported } from "../../models/reasoningEffort";
 import { selectableReasoningEffort } from "../../services/ai/chatRequestBody";
+import { offersThinkingToggle } from "../../services/ai/thinkingSuppression";
 import { useManagedScopeResolution } from "../../stores/enterpriseIdentityStore";
 import { modeSwitchPatch } from "../../utils/llmModeSwitch";
 import { requestSignIn } from "../../utils/requestSignIn";
@@ -171,13 +172,7 @@ export default function InferenceConfigEditor({
     />
   );
 
-  const showThinkingToggle =
-    effectiveMode === "self-hosted" ||
-    (effectiveMode === "providers" &&
-      (config.provider === "custom" ||
-        config.provider === "openrouter" ||
-        !!getCloudModel(config.model)?.supportsThinking)) ||
-    (effectiveMode === "local" && !!getLocalModel(config.model)?.supportsThinking);
+  const showThinkingToggle = offersThinkingToggle(effectiveMode, config.provider, config.model);
 
   const effortCapability =
     effectiveMode === "providers"
