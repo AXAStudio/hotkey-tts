@@ -11,6 +11,7 @@ const {
 const path = require("path");
 const fs = require("fs");
 const { randomUUID } = require("crypto");
+const { isDeepStrictEqual } = require("util");
 const noteUndo = require("./noteUndo");
 const debugLogger = require("./debugLogger");
 const { buildNoteSearchQuery } = require("./noteSearch");
@@ -21,7 +22,12 @@ const { parseEventTime } = require("./calendarAvailability");
 // keeps the cloud created_at but lets timestamp default to the local pull, so
 // a naive value must never outrank created_at when dating a historical row.
 const { hasExplicitTimeZone, parseDbTimestamp, toDbTimestamp } = require("./dbTimestamp");
-const { BUILTIN_ACTIONS, GENERATE_NOTES_KEY, NOTE_ACTION_LIMITS } = require("./builtinActions");
+const {
+  BUILTIN_ACTIONS,
+  GENERATE_NOTES_KEY,
+  LEGACY_DETAILED_NOTES,
+  NOTE_ACTION_LIMITS,
+} = require("./builtinActions");
 const { normalizeSections } = require("./templatePrompts");
 const {
   ANALYTICS_COUNTER_VERSION,
@@ -710,23 +716,79 @@ class DatabaseManager {
         "CREATE INDEX IF NOT EXISTS idx_agent_conversations_container ON agent_conversations(space_id, folder_id)"
       );
 
-      const builtinKeys = BUILTIN_ACTIONS.map((action) => action.translationKey);
-      // A built-in's client id is its key. An older build renames built-in keys it
-      // doesn't know (below), so after a downgrade and upgrade the key comes back
-      // from the client id instead of the row being seeded a second time.
-      this.db
-        .prepare(
-          `UPDATE actions SET translation_key = client_id WHERE is_builtin = 1 AND client_id IN (${builtinKeys.map(() => "?").join(", ")}) AND translation_key IS NOT client_id`
-        )
-        .run(...builtinKeys);
+      const builtinKeys = [
+        ...BUILTIN_ACTIONS.map((action) => action.translationKey),
+        LEGACY_DETAILED_NOTES.translationKey,
+      ];
+      this.db.transaction(() => {
+        // Older builds rename unfamiliar keys. Recover even the retired key
+        // before the unknown-key fallback can turn it into a second AI Summary.
+        this.db
+          .prepare(
+            `UPDATE actions SET translation_key = client_id WHERE is_builtin = 1 AND client_id IN (${builtinKeys.map(() => "?").join(", ")}) AND translation_key IS NOT client_id`
+          )
+          .run(...builtinKeys);
 
-      // Pre-2026 installs carry one built-in row under an older key: rename it to
-      // Generate Notes so the loop below recognizes and upgrades it.
-      this.db
-        .prepare(
-          `UPDATE actions SET translation_key = ? WHERE is_builtin = 1 AND (translation_key IS NULL OR translation_key NOT IN (${builtinKeys.map(() => "?").join(", ")}))`
-        )
-        .run(GENERATE_NOTES_KEY, ...builtinKeys);
+        const hasStockContent = (row, action) => {
+          if (row.sections === null) return action.previousPrompts.includes(row.prompt);
+          if (row.prompt !== action.prompt) return false;
+          try {
+            return isDeepStrictEqual(JSON.parse(row.sections), action.sections);
+          } catch {
+            // Unrecognized data may be a customization; keep it.
+            return false;
+          }
+        };
+        // A customized AI Summary isn't the detailed template, so Detailed Notes stays.
+        const summaryRow = this.db
+          .prepare(
+            "SELECT prompt, sections FROM actions WHERE is_builtin = 1 AND translation_key = ?"
+          )
+          .get(GENERATE_NOTES_KEY);
+        const summaryIsStock =
+          !summaryRow ||
+          hasStockContent(
+            summaryRow,
+            BUILTIN_ACTIONS.find((action) => action.translationKey === GENERATE_NOTES_KEY)
+          );
+
+        const legacyRows = this.db
+          .prepare("SELECT * FROM actions WHERE is_builtin = 1 AND translation_key = ?")
+          .all(LEGACY_DETAILED_NOTES.translationKey);
+        const deleteLegacy = this.db.prepare("DELETE FROM actions WHERE id = ?");
+        const settleLegacy = this.db.prepare(
+          "UPDATE OR IGNORE actions SET client_id = COALESCE(client_id, ?), sort_order = ?, prompt = ?, sections = ? WHERE id = ?"
+        );
+        for (const row of legacyRows) {
+          const stockContent = hasStockContent(row, LEGACY_DETAILED_NOTES);
+          if (
+            summaryIsStock &&
+            stockContent &&
+            row.name === LEGACY_DETAILED_NOTES.name &&
+            row.description === LEGACY_DETAILED_NOTES.description &&
+            row.icon === LEGACY_DETAILED_NOTES.icon
+          ) {
+            deleteLegacy.run(row.id);
+          } else {
+            // A previous flat default still moves to sections, keeping the user's name.
+            const upgradesPrompt = stockContent && row.sections === null;
+            settleLegacy.run(
+              LEGACY_DETAILED_NOTES.translationKey,
+              LEGACY_DETAILED_NOTES.sortOrder,
+              upgradesPrompt ? LEGACY_DETAILED_NOTES.prompt : row.prompt,
+              upgradesPrompt ? JSON.stringify(LEGACY_DETAILED_NOTES.sections) : row.sections,
+              row.id
+            );
+          }
+        }
+
+        // Pre-2026 installs carry the default under an older key.
+        this.db
+          .prepare(
+            `UPDATE actions SET translation_key = ? WHERE is_builtin = 1 AND (translation_key IS NULL OR translation_key NOT IN (${builtinKeys.map(() => "?").join(", ")}))`
+          )
+          .run(GENERATE_NOTES_KEY, ...builtinKeys);
+      })();
 
       // Built-ins: insert any that are missing, and roll a new default out to rows
       // that are still a previous flat default (never a user edit). A built-in's
