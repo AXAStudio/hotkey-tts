@@ -69,6 +69,7 @@ const EXPECTED_SHARED_FIELD_DIRECTIONS = {
   "src/components/SnippetsView.tsx": ["auto", "auto", "auto", "auto"],
   "src/components/notes/ActionManagerDialog.tsx": ["auto", "auto", "auto"],
   "src/components/notes/DeleteSpaceDialog.tsx": ["auto"],
+  "src/components/notes/FolderNotesPopover.tsx": ["auto"],
   "src/components/notes/UploadAudioView.tsx": ["auto"],
   "src/components/settings/DictationAgentSettings.tsx": ["auto"],
   "src/components/settings/EnterpriseCheckoutDialog.tsx": ["inherit"],
