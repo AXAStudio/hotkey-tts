@@ -3452,6 +3452,25 @@
       "typeEmail": "E-Mail eingeben zum Hinzufügen...",
       "me": "(ich)"
     },
+    "eventLink": {
+      "selectEvent": "Kalenderereignis auswählen",
+      "searchPlaceholder": "Ereignis suchen…",
+      "back": "Zurück",
+      "removeEvent": "Kalenderereignis entfernen",
+      "allDay": "Ganztägig",
+      "noEventsOnDay": "Keine Ereignisse an diesem Tag",
+      "searchOtherDays": "Suchen, um Ereignisse an anderen Tagen zu finden",
+      "outsideWindow": "Nur Ereignisse der letzten {{days}} Tage können verknüpft werden",
+      "noResults": "Keine passenden Ereignisse",
+      "noCalendar": "Verbinde unter Integrationen einen Kalender, um Ereignisse zu verknüpfen",
+      "loadFailed": "Kalenderereignisse konnten nicht geladen werden",
+      "join": "Beitreten",
+      "calendar": "Kalender",
+      "openInGoogle": "In Google Calendar öffnen",
+      "openInOutlook": "In Outlook öffnen",
+      "linkedEvent": "Kalenderereignis",
+      "unavailable": "Dieses Ereignis ist auf diesem Gerät in keinem deiner Kalender"
+    },
     "upload": {
       "title": "Audio hochladen",
       "using": "Verwendet {{model}}",

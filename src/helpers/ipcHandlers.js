@@ -207,6 +207,7 @@ const {
   isSignInRefusal,
 } = require("./realtimeTokenProviders");
 const { getCalendarAvailability } = require("./calendarAvailabilityService");
+const { CALENDAR_LOOKBACK_MS } = require("./calendarCacheWindow");
 
 // Meeting capture runs at 24 kHz (see meetingRecordingStore AudioContext); cloud
 // streaming providers must be told the true PCM rate or they misread the audio.
@@ -1150,8 +1151,13 @@ class IPCHandlers {
     const googleEmails = new Set(
       this.databaseManager.getGoogleAccounts().map((a) => a.email.toLowerCase())
     );
+    // Rooms aren't speakers; notes linked before rooms were left out may hold them.
     return participants.filter(
-      (p) => p && p.self !== true && !googleEmails.has((p.email || "").toLowerCase())
+      (p) =>
+        p &&
+        p.self !== true &&
+        p.resource !== true &&
+        !googleEmails.has((p.email || "").toLowerCase())
     );
   }
 
@@ -12224,6 +12230,23 @@ class IPCHandlers {
         return { success: true, event };
       } catch (error) {
         return { success: false, event: null };
+      }
+    });
+
+    ipcMain.handle("calendar-get-linkable-events", async () => {
+      try {
+        // A day past the synced history: an all-day row's plain-date end reads
+        // as UTC midnight, up to 14 hours off the user's local end.
+        const endsAfter = new Date(
+          Date.now() - CALENDAR_LOOKBACK_MS - 24 * 60 * 60 * 1000
+        ).toISOString();
+        return {
+          success: true,
+          events: this.databaseManager.getLinkableCalendarEvents({ endsAfter }),
+        };
+      } catch (error) {
+        debugLogger.debug("Linkable calendar events failed", { error: error.message }, "calendar");
+        return { success: false, events: [] };
       }
     });
 

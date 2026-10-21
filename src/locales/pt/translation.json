@@ -3101,6 +3101,25 @@
       "typeEmail": "Digite um e-mail para adicionar...",
       "me": "(eu)"
     },
+    "eventLink": {
+      "selectEvent": "Selecionar evento do calendário",
+      "searchPlaceholder": "Pesquisar evento…",
+      "back": "Voltar",
+      "removeEvent": "Remover evento do calendário",
+      "allDay": "Dia inteiro",
+      "noEventsOnDay": "Nenhum evento neste dia",
+      "searchOtherDays": "Pesquise para encontrar eventos de outros dias",
+      "outsideWindow": "Só é possível vincular eventos dos últimos {{days}} dias",
+      "noResults": "Nenhum evento correspondente",
+      "noCalendar": "Conecte um calendário em Integrações para vincular eventos",
+      "loadFailed": "Não foi possível carregar os eventos do calendário",
+      "join": "Entrar",
+      "calendar": "Calendário",
+      "openInGoogle": "Abrir no Google Calendar",
+      "openInOutlook": "Abrir no Outlook",
+      "linkedEvent": "Evento do calendário",
+      "unavailable": "Este evento não está nos seus calendários neste dispositivo"
+    },
     "upload": {
       "title": "Enviar áudio",
       "using": "Usando {{model}}",

@@ -191,12 +191,21 @@ const FOLDER_NAME_TAKEN_FILTER = `(deleted_at IS NULL OR EXISTS (
 // duplicate UI rows; suppress the Apple copy when a REST row occupies the same
 // time slot + title (REST rows have richer conference data). datetime()
 // normalizes the providers' timestamp formats (Google stores offset-form
-// RFC3339, Apple/Microsoft store UTC "Z" form). REST rows are never collapsed
-// — Google and Microsoft are never mirrors of each other.
+// RFC3339, Apple/Microsoft store UTC "Z" form). All-day rows pair by local
+// days instead: REST providers store plain dates (the end exclusive) while the
+// Apple helper writes local instants, ending at either the next midnight or
+// the last second of the final day — one second later is the exclusive end
+// day in both cases. REST rows are never collapsed — Google and Microsoft are
+// never mirrors of each other.
+const MIRROR_SLOT = `CASE WHEN is_all_day THEN 'day:' || CASE WHEN length(start_time) = 10
+  THEN start_time || '|' || end_time
+  ELSE date(start_time, 'localtime') || '|' || date(end_time, '+1 second', 'localtime') END
+  ELSE datetime(start_time) || '|' || datetime(end_time) END`;
+
 function dedupedEventsQuery(where) {
   return `SELECT * FROM (
     SELECT *, MAX(provider != 'apple') OVER (
-      PARTITION BY datetime(start_time), datetime(end_time), COALESCE(summary, '')
+      PARTITION BY ${MIRROR_SLOT}, COALESCE(summary, '')
     ) AS has_synced
     FROM calendar_events
     WHERE ${where}
@@ -978,6 +987,18 @@ class DatabaseManager {
         this.db.pragma("user_version = 4");
       }
 
+      // One-time reset (user_version 5): the stored lookback widened to
+      // CALENDAR_LOOKBACK_DAYS so notes can link recent past events, and REST
+      // sync tokens pin the window they were created with. The full sync also
+      // fills calendar_events.web_link.
+      if (this.db.pragma("user_version", { simple: true }) < 5) {
+        this.db.exec(`
+          UPDATE google_calendars SET sync_token = NULL, sync_token_expires_at = NULL;
+          UPDATE microsoft_calendars SET sync_token = NULL, sync_token_expires_at = NULL;
+        `);
+        this.db.pragma("user_version = 5");
+      }
+
       this.db.exec(`
         CREATE TABLE IF NOT EXISTS apple_calendars (
           id TEXT PRIMARY KEY,
@@ -1001,6 +1022,13 @@ class DatabaseManager {
 
       try {
         this.db.exec("ALTER TABLE calendar_events ADD COLUMN attendees TEXT");
+      } catch (err) {
+        if (!err.message.includes("duplicate column")) throw err;
+      }
+      // The event's page in Google Calendar or Outlook on the web; Apple has
+      // none. The user_version 5 full sync fills it for rows in the sync window.
+      try {
+        this.db.exec("ALTER TABLE calendar_events ADD COLUMN web_link TEXT");
       } catch (err) {
         if (!err.message.includes("duplicate column")) throw err;
       }
@@ -3382,6 +3410,10 @@ class DatabaseManager {
       const previous = this.getNote(id);
       if (!previous) return { success: false, error: "Note not found" };
       updates = { ...updates };
+      // An unlink is stored as "" so it syncs: the cloud keeps a NULL as "unchanged".
+      if (updates.calendar_event_id === null && previous.calendar_event_id != null) {
+        updates.calendar_event_id = "";
+      }
       const clears = updates.clear_fields ?? [];
       if (!Array.isArray(clears) || clears.some((field) => !NOTE_TEXT_FIELDS.includes(field))) {
         return { success: false, error: "Invalid note clear fields" };
@@ -5002,7 +5034,7 @@ class DatabaseManager {
       if (!this.db) throw new Error("Database not initialized");
       const transaction = this.db.transaction((eventList) => {
         const stmt = this.db.prepare(
-          "INSERT OR REPLACE INTO calendar_events (id, calendar_id, provider, summary, start_time, end_time, is_all_day, status, availability_status, self_response_status, hangout_link, conference_data, organizer_email, attendees_count, attendees, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)"
+          "INSERT OR REPLACE INTO calendar_events (id, calendar_id, provider, summary, start_time, end_time, is_all_day, status, availability_status, self_response_status, hangout_link, conference_data, organizer_email, attendees_count, attendees, web_link, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)"
         );
         for (const e of eventList) {
           stmt.run(
@@ -5020,7 +5052,8 @@ class DatabaseManager {
             e.conference_data || null,
             e.organizer_email || null,
             e.attendees_count || 0,
-            e.attendees || null
+            e.attendees || null,
+            e.web_link || null
           );
         }
       });
@@ -5147,6 +5180,52 @@ class DatabaseManager {
     }
   }
 
+  // The stored events on the user's selected calendars that a note can link
+  // to (not cancelled or declined), with its calendar's colour for the picker.
+  // `endsAfter` (ISO) leaves out old rows kept only because a note links them,
+  // which would otherwise grow with every linked note.
+  getLinkableCalendarEvents({ endsAfter = null } = {}) {
+    try {
+      if (!this.db) throw new Error("Database not initialized");
+      const colors = new Map(
+        this.db
+          .prepare(
+            `SELECT 'google' AS provider, id, background_color AS color FROM google_calendars
+             UNION ALL
+             SELECT 'microsoft', id, background_color FROM microsoft_calendars
+             UNION ALL
+             SELECT 'apple', id, color FROM apple_calendars`
+          )
+          .all()
+          .map((row) => [`${row.provider}:${row.id}`, row.color])
+      );
+      return this.db
+        .prepare(
+          dedupedEventsQuery(
+            `status IN ('confirmed', 'tentative') AND ${SELECTED_CALENDAR_EVENT_FILTER}
+             AND (? IS NULL OR datetime(end_time) > datetime(?))`
+          )
+        )
+        .all(endsAfter, endsAfter)
+        .filter((event) => event.self_response_status !== "declined")
+        .map((row) => {
+          const event = stripDedupeColumn(row);
+          const color = colors.get(`${event.provider}:${event.calendar_id}`);
+          return {
+            ...event,
+            calendar_color: /^#[0-9a-f]{6}$/i.test(color ?? "") ? color : null,
+          };
+        });
+    } catch (error) {
+      debugLogger.error(
+        "Error getting linkable calendar events",
+        { error: error.message },
+        "calendar"
+      );
+      throw error;
+    }
+  }
+
   getCalendarEventById(eventId) {
     try {
       if (!this.db) throw new Error("Database not initialized");
@@ -5253,7 +5332,7 @@ class DatabaseManager {
   }
 
   // What find_contact searches. calendar_events only holds a sync window
-  // (about two days back to a month ahead), so the meetings nearest to now go
+  // (about three days back to a month ahead), so the meetings nearest to now go
   // first, and the contacts table (every synced attendee until its last
   // source is disconnected) covers older ones, most recently seen first. Only
   // the user's own meetings count: not cancelled or declined ones, not a
@@ -5340,6 +5419,8 @@ class DatabaseManager {
   // match, or both apps record into one note. Ownership follows ownsNote() in
   // spacePermissions.ts, plus Personal rows synced before owners were recorded.
   getOwnNoteByCalendarEventId(eventId, { throwOnError = false } = {}) {
+    // An unlinked note stores "", which must never match.
+    if (!eventId) return null;
     try {
       if (!this.db) throw new Error("Database not initialized");
       const accountScope = this._accountScopeCondition("notes");
@@ -5820,15 +5901,15 @@ class DatabaseManager {
     }
   }
 
-  // Snapshots cover the full current/future window, so missing unreferenced
-  // events can be removed while note-linked history is retained.
+  // Snapshots cover the full cache window, so missing unreferenced events can
+  // be removed while note-linked history is retained.
   replaceAppleCalendarEvents(events) {
     try {
       if (!this.db) throw new Error("Database not initialized");
       const transaction = this.db.transaction((list) => {
-        // The helper snapshot only contains current/future events. Keep past or
-        // rescheduled rows that are still referenced by meeting notes so those
-        // notes retain their calendar metadata.
+        // The helper snapshot only covers the lookback window and the future.
+        // Keep older or rescheduled rows that are still referenced by meeting
+        // notes so those notes retain their calendar metadata.
         this.db
           .prepare(
             `DELETE FROM calendar_events
@@ -6495,7 +6576,9 @@ class DatabaseManager {
         localFolderId,
         spaceId,
         cloudNote.participants || null,
-        cloudNote.calendar_event_id || null,
+        // "" is the cloud's record of a deliberate unlink; NULL means the API
+        // omitted the field, which the COALESCE above treats as "keep local".
+        cloudNote.calendar_event_id ?? null,
         cloudNote.diarization_enabled ?? null,
         normalizeStoredSpeakerCount(cloudNote.expected_speaker_count),
         cloudNote.updated_by_user_id || null,
