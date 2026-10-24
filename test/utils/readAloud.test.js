@@ -38,3 +38,22 @@ test("an unset or uninstalled voice falls back to the system default", () => {
   assert.equal(readAloud.resolveReadAloudVoice(voices, "Removed Voice"), null);
   assert.equal(readAloud.resolveReadAloudVoice([], "Microsoft David"), null);
 });
+
+test("Edge voice names read as the speaker's name", () => {
+  assert.equal(readAloud.edgeVoiceLabel("en-US-ChristopherNeural"), "Christopher");
+  assert.equal(readAloud.edgeVoiceLabel("en-US-AndrewMultilingualNeural"), "Andrew Multilingual");
+  assert.equal(readAloud.edgeVoiceLabel("zh-CN-liaoning-XiaobeiNeural"), "liaoning-Xiaobei");
+});
+
+test("the Edge picker lists the chosen languages plus the saved voice", () => {
+  const voices = [
+    { name: "fr-FR-HenriNeural", locale: "fr-FR" },
+    { name: "en-US-ChristopherNeural", locale: "en-US" },
+    { name: "de-DE-KatjaNeural", locale: "de-DE" },
+    { name: "en-GB-SoniaNeural", locale: "en-GB" },
+  ];
+  assert.deepEqual(
+    readAloud.pickEdgeVoices(voices, ["en"], "de-DE-KatjaNeural").map((voice) => voice.name),
+    ["de-DE-KatjaNeural", "en-GB-SoniaNeural", "en-US-ChristopherNeural"]
+  );
+});

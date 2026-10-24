@@ -2195,7 +2195,13 @@
         "preview": "試聴",
         "speed": "速度",
         "speedOption": "{{rate}}×",
-        "sample": "選択したテキストはこのように読み上げられます。"
+        "sample": "選択したテキストはこのように読み上げられます。",
+        "engine": "音声エンジン",
+        "engineEdge": "Microsoft Edge（自然、オンライン）",
+        "engineGoogle": "Google（オンライン）",
+        "engineSystem": "システム音声（オフライン）",
+        "onlineNote": "選択したテキストは読み上げのために {{provider}} に送信されます。接続できない場合はシステム音声を使用します。",
+        "voicesUnavailable": "音声リストを読み込めませんでした。インターネット接続を確認してください。"
       }
     },
     "permissions": {

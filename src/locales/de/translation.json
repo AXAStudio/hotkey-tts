@@ -2489,7 +2489,13 @@
         "preview": "Probehören",
         "speed": "Geschwindigkeit",
         "speedOption": "{{rate}}×",
-        "sample": "So klingt markierter Text, wenn er vorgelesen wird."
+        "sample": "So klingt markierter Text, wenn er vorgelesen wird.",
+        "engine": "Sprachausgabe",
+        "engineEdge": "Microsoft Edge (natürlich, online)",
+        "engineGoogle": "Google (online)",
+        "engineSystem": "Systemstimmen (offline)",
+        "onlineNote": "Der markierte Text wird zum Vorlesen an {{provider}} gesendet. Ist der Dienst nicht erreichbar, wird die Systemstimme verwendet.",
+        "voicesUnavailable": "Die Stimmenliste konnte nicht geladen werden. Prüfe deine Internetverbindung."
       }
     },
     "permissions": {

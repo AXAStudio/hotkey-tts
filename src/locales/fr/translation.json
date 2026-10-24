@@ -2489,7 +2489,13 @@
         "preview": "Écouter",
         "speed": "Vitesse",
         "speedOption": "{{rate}}×",
-        "sample": "Voici comment le texte sélectionné sonnera à voix haute."
+        "sample": "Voici comment le texte sélectionné sonnera à voix haute.",
+        "engine": "Moteur vocal",
+        "engineEdge": "Microsoft Edge (naturel, en ligne)",
+        "engineGoogle": "Google (en ligne)",
+        "engineSystem": "Voix du système (hors ligne)",
+        "onlineNote": "Le texte sélectionné est envoyé à {{provider}} pour être lu. S'il est injoignable, la voix du système est utilisée.",
+        "voicesUnavailable": "Impossible de charger la liste des voix. Vérifiez votre connexion Internet."
       }
     },
     "permissions": {

@@ -2195,7 +2195,13 @@
         "preview": "试听",
         "speed": "语速",
         "speedOption": "{{rate}}×",
-        "sample": "这是选中文本被朗读时的效果。"
+        "sample": "这是选中文本被朗读时的效果。",
+        "engine": "语音引擎",
+        "engineEdge": "Microsoft Edge（自然，在线）",
+        "engineGoogle": "Google（在线）",
+        "engineSystem": "系统语音（离线）",
+        "onlineNote": "所选文本会发送到 {{provider}} 进行朗读。如果无法连接，将改用系统语音。",
+        "voicesUnavailable": "无法加载语音列表。请检查网络连接。"
       }
     },
     "permissions": {

@@ -232,6 +232,16 @@ export function snapReadAloudRate(value: number): number {
   return (READ_ALOUD_RATE_CHOICES as readonly number[]).includes(value) ? value : 1;
 }
 
+export const READ_ALOUD_ENGINES = ["edge", "google", "system"] as const;
+export type ReadAloudEngine = (typeof READ_ALOUD_ENGINES)[number];
+export const DEFAULT_READ_ALOUD_EDGE_VOICE = "en-US-ChristopherNeural";
+
+export function normalizeReadAloudEngine(value: string | null | undefined): ReadAloudEngine {
+  return (READ_ALOUD_ENGINES as readonly string[]).includes(value ?? "")
+    ? (value as ReadAloudEngine)
+    : "edge";
+}
+
 function readStringArray(key: string, fallback: string[]): string[] {
   if (!isBrowser) return fallback;
   const stored = localStorage.getItem(key);
@@ -1229,9 +1239,15 @@ export interface SettingsState
   setTranslationKey: (key: string) => Promise<HotkeyRegistrationResult>;
   readAloudKey: string;
   setReadAloudKey: (key: string) => Promise<HotkeyRegistrationResult>;
-  /** voiceURI of the speechSynthesis voice; "" uses the system default. */
+  /** Where read aloud speech comes from; the online engines send the text out. */
+  readAloudEngine: ReadAloudEngine;
+  setReadAloudEngine: (engine: ReadAloudEngine) => void;
+  /** voiceURI of the speechSynthesis voice for the system engine; "" uses the system default. */
   readAloudVoice: string;
   setReadAloudVoice: (voiceURI: string) => void;
+  /** Short name of the Microsoft Edge voice, e.g. en-US-ChristopherNeural. */
+  readAloudEdgeVoice: string;
+  setReadAloudEdgeVoice: (voice: string) => void;
   readAloudRate: number;
   setReadAloudRate: (rate: number) => void;
   setMeetingHotkeyLayoutMode: (mode: "side-panel" | "full-width") => void;
@@ -1641,7 +1657,9 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   voiceAgentKey: readString("voiceAgentKey", ""),
   translationKey: readString("translationKey", ""),
   readAloudKey: readString("readAloudKey", ""),
+  readAloudEngine: normalizeReadAloudEngine(readString("readAloudEngine", "edge")),
   readAloudVoice: readString("readAloudVoice", ""),
+  readAloudEdgeVoice: readString("readAloudEdgeVoice", DEFAULT_READ_ALOUD_EDGE_VOICE),
   readAloudRate: snapReadAloudRate(Number(readString("readAloudRate", "1"))),
   onboardingUseCases: readStringArray("onboardingUseCases", []),
   onboardingUseCaseNote: readString("onboardingUseCaseNote", ""),
@@ -2386,7 +2404,10 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     "read aloud hotkey",
     () => window.electronAPI?.updateReadAloudHotkey
   ),
+  setReadAloudEngine: (engine: ReadAloudEngine) =>
+    createStringSetter("readAloudEngine")(normalizeReadAloudEngine(engine)),
   setReadAloudVoice: createStringSetter("readAloudVoice"),
+  setReadAloudEdgeVoice: createStringSetter("readAloudEdgeVoice"),
   setReadAloudRate: (rate: number) => createNumberSetter("readAloudRate")(snapReadAloudRate(rate)),
 
   setMeetingHotkeyLayoutMode: (mode: "side-panel" | "full-width") => {
@@ -3873,6 +3894,8 @@ export async function initializeSettings(): Promise<void> {
       } else {
         value = parsed;
       }
+    } else if (key === "readAloudEngine") {
+      value = normalizeReadAloudEngine(newValue);
     } else if (key === "emailDraftTarget") {
       value = normalizeEmailDraftTarget(newValue);
     } else if (key === "toneStyles") {

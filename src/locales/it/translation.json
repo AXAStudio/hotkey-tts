@@ -2195,7 +2195,13 @@
         "preview": "Ascolta",
         "speed": "Velocità",
         "speedOption": "{{rate}}×",
-        "sample": "Ecco come suonerà il testo selezionato letto ad alta voce."
+        "sample": "Ecco come suonerà il testo selezionato letto ad alta voce.",
+        "engine": "Motore vocale",
+        "engineEdge": "Microsoft Edge (naturale, online)",
+        "engineGoogle": "Google (online)",
+        "engineSystem": "Voci di sistema (offline)",
+        "onlineNote": "Il testo selezionato viene inviato a {{provider}} per essere letto. Se non è raggiungibile, viene usata la voce di sistema.",
+        "voicesUnavailable": "Impossibile caricare l'elenco delle voci. Controlla la connessione a Internet."
       }
     },
     "permissions": {

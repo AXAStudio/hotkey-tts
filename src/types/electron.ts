@@ -1465,6 +1465,16 @@ declare global {
       captureReadAloudText?: () => Promise<
         { status: "selected"; text: string } | { status: string; code?: string }
       >;
+      synthesizeReadAloud?: (request: {
+        engine: "edge" | "google";
+        text: string;
+        voice?: string;
+        rate?: number;
+      }) => Promise<{ success: true; audio: Uint8Array } | { success: false; error: string }>;
+      getReadAloudEdgeVoices?: () => Promise<
+        | { success: true; voices: Array<{ name: string; locale: string; gender: string }> }
+        | { success: false; error: string }
+      >;
       onOpenAssistantPanel?: (callback: () => void) => () => void;
       onStartDictation?: (callback: () => void) => () => void;
       onStopDictation?: (callback: () => void) => () => void;

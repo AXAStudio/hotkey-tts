@@ -2195,7 +2195,13 @@
         "preview": "試聽",
         "speed": "語速",
         "speedOption": "{{rate}}×",
-        "sample": "這是選取的文字被朗讀時的效果。"
+        "sample": "這是選取的文字被朗讀時的效果。",
+        "engine": "語音引擎",
+        "engineEdge": "Microsoft Edge（自然，線上）",
+        "engineGoogle": "Google（線上）",
+        "engineSystem": "系統語音（離線）",
+        "onlineNote": "選取的文字會傳送到 {{provider}} 進行朗讀。如果無法連線，將改用系統語音。",
+        "voicesUnavailable": "無法載入語音清單。請檢查網路連線。"
       }
     },
     "permissions": {

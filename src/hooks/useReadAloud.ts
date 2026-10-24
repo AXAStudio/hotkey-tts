@@ -1,20 +1,22 @@
 import { useEffect } from "react";
 import { useSettingsStore } from "../stores/settingsStore";
-import { prepareReadAloudText, resolveReadAloudVoice } from "../utils/readAloud";
+import { createReadAloudPlayer } from "../services/readAloudPlayer";
+import { prepareReadAloudText } from "../utils/readAloud";
 import logger from "../utils/logger";
 
 /**
  * Speaks the selected text when the read aloud hotkey is pressed, and stops
  * when it is pressed again while speaking (or while the selection is still
  * being copied). Mounted once, in the dictation window, which lives for the
- * whole session; speech uses the OS voices through speechSynthesis.
+ * whole session. Speech comes from the engine picked in Settings: Microsoft
+ * Edge or Google voices online, or the OS voices through speechSynthesis.
  */
 export function useReadAloud(): void {
   useEffect(() => {
-    const synth = window.speechSynthesis;
     const electronAPI = window.electronAPI;
-    if (!synth || !electronAPI?.onToggleReadAloud || !electronAPI.captureReadAloudText) return;
+    if (!electronAPI?.onToggleReadAloud || !electronAPI.captureReadAloudText) return;
 
+    const player = createReadAloudPlayer();
     // Bumped on every press, so a capture that resolves after a stop press
     // (or after a newer press) is dropped instead of starting to speak.
     let generation = 0;
@@ -22,9 +24,9 @@ export function useReadAloud(): void {
 
     const toggle = async () => {
       const press = ++generation;
-      if (capturing || synth.speaking || synth.pending) {
+      if (capturing || player.isActive()) {
         capturing = false;
-        synth.cancel();
+        player.stop();
         return;
       }
 
@@ -55,20 +57,14 @@ export function useReadAloud(): void {
         return;
       }
 
-      const { readAloudVoice, readAloudRate } = useSettingsStore.getState();
-      const utterance = new SpeechSynthesisUtterance(speakable);
-      const voice = resolveReadAloudVoice(synth.getVoices(), readAloudVoice);
-      if (voice) {
-        utterance.voice = voice;
-        utterance.lang = voice.lang;
-      }
-      utterance.rate = readAloudRate;
-      utterance.onerror = (event) => {
-        if (event.error === "canceled" || event.error === "interrupted") return;
-        logger.warn("Read aloud speech failed", { error: event.error }, "readAloud");
-      };
-      synth.cancel();
-      synth.speak(utterance);
+      const { readAloudEngine, readAloudVoice, readAloudEdgeVoice, readAloudRate } =
+        useSettingsStore.getState();
+      void player.speak(speakable, {
+        engine: readAloudEngine,
+        systemVoiceURI: readAloudVoice,
+        edgeVoice: readAloudEdgeVoice,
+        rate: readAloudRate,
+      });
     };
 
     const dispose = electronAPI.onToggleReadAloud(() => {
@@ -77,7 +73,7 @@ export function useReadAloud(): void {
     return () => {
       generation++;
       dispose?.();
-      synth.cancel();
+      player.stop();
     };
   }, []);
 }

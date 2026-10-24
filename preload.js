@@ -107,6 +107,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   onToggleTranslation: registerListener("toggle-translation", (callback) => () => callback()),
   onToggleReadAloud: registerListener("toggle-read-aloud", (callback) => () => callback()),
   captureReadAloudText: () => ipcRenderer.invoke("capture-read-aloud-text"),
+  synthesizeReadAloud: (request) => ipcRenderer.invoke("read-aloud-synthesize", request),
+  getReadAloudEdgeVoices: () => ipcRenderer.invoke("read-aloud-edge-voices"),
   onOpenAssistantPanel: registerListener("open-assistant-panel", (callback) => () => callback()),
   onStartDictation: registerListener("start-dictation", (callback) => () => callback()),
   onStopDictation: registerListener("stop-dictation", (callback) => () => callback()),

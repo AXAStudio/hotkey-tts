@@ -51,6 +51,7 @@ const {
   createConnectorAuthLookup,
 } = require("./connectors/connectorIpc");
 const { createNoteAttendeesLookup, searchContacts } = require("./connectors/contactSearch");
+const onlineTts = require("./onlineTts");
 // The renderer's ModelRegistry is not main-loadable; the raw registry data is
 // packaged, and the route resolver only needs {id, baseUrl} per provider.
 const transcriptionProviderBaseUrls = () =>
@@ -12181,6 +12182,32 @@ class IPCHandlers {
         return { status: "selected", text: capture.text };
       }
       return { status: capture.status, code: capture.code };
+    });
+
+    // Online read aloud voices (Microsoft Edge, Google). The renderer sends one
+    // chunk at a time and plays the returned MP3; a failure falls back to the
+    // system voices there.
+    ipcMain.handle("read-aloud-synthesize", async (_event, request = {}) => {
+      try {
+        const audio = await onlineTts.synthesizeReadAloud(request);
+        return { success: true, audio };
+      } catch (error) {
+        debugLogger.warn(
+          "Read aloud synthesis failed",
+          { engine: request?.engine, error: error.message },
+          "readAloud"
+        );
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle("read-aloud-edge-voices", async () => {
+      try {
+        return { success: true, voices: await onlineTts.listEdgeVoices() };
+      } catch (error) {
+        debugLogger.warn("Edge voice list failed", { error: error.message }, "readAloud");
+        return { success: false, error: error.message };
+      }
     });
 
     ipcMain.handle("acquire-recording-lock", async (_event, pipeline) => {
