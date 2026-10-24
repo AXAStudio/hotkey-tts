@@ -175,7 +175,7 @@
     "ffmpeg-static": "^5.2.0",
     "flatted": "^3.4.4",
     "i18next": "^26.3.6",
-    "kysely": "^0.28.17",
+    "kysely": "^0.29.7",
     "object-assign": "^4.1.1",
     "onnxruntime-node": "^1.21.0",
     "opencc-js": "^1.4.1",
