@@ -12136,6 +12136,53 @@ class IPCHandlers {
       return this.environmentManager.getTranslationKey?.() || "";
     });
 
+    ipcMain.handle("update-read-aloud-hotkey", async (_event, hotkey) => {
+      const hotkeyManager = this.windowManager.hotkeyManager;
+      const readAloudCallback = this.windowManager._readAloudHotkeyCallback;
+      if (!readAloudCallback) {
+        return { success: false };
+      }
+
+      if (!hotkey) {
+        const removed = await hotkeyManager.unregisterSlot("readAloud");
+        if (removed === false) return { success: false };
+        this.environmentManager.saveReadAloudKey?.("");
+        this.windowManager.reconcileNativeKeyListeners();
+        this._notifyHotkeyChanged("");
+        return { success: true, message: "Read aloud hotkey cleared" };
+      }
+
+      const result = await hotkeyManager.registerSlot("readAloud", hotkey, readAloudCallback, {
+        atomic: true,
+      });
+      this.windowManager.reconcileNativeKeyListeners();
+      if (result.success) {
+        this.environmentManager.saveReadAloudKey?.(hotkey);
+        this._notifyHotkeyChanged(hotkey);
+        return { success: true, message: `Read aloud hotkey updated to: ${hotkey}` };
+      }
+
+      return { success: false, message: result.error };
+    });
+
+    ipcMain.handle("get-read-aloud-key", async () => {
+      return this.environmentManager.getReadAloudKey?.() || "";
+    });
+
+    // The read aloud hotkey captured its target at press time; copy the
+    // selection only once that capture has landed. Only the text leaves main.
+    ipcMain.handle("capture-read-aloud-text", async () => {
+      if (!this.selectionManager) {
+        return { status: "unavailable", code: "selection_manager_unavailable" };
+      }
+      await this.windowManager.waitForReadAloudTarget?.();
+      const capture = await this.selectionManager.captureSelectedText();
+      if (capture.status === "selected") {
+        return { status: "selected", text: capture.text };
+      }
+      return { status: capture.status, code: capture.code };
+    });
+
     ipcMain.handle("acquire-recording-lock", async (_event, pipeline) => {
       if (this._activeRecordingPipeline && this._activeRecordingPipeline !== pipeline) {
         return { success: false, holder: this._activeRecordingPipeline };

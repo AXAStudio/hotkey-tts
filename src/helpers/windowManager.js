@@ -1218,6 +1218,25 @@ class WindowManager {
     this._sendDictationToggle("toggle-translation", "translation");
   }
 
+  // Read aloud speaks the selection from the dictation window without showing
+  // the pill or opening the mic. The target is captured at press time, before
+  // anything can move focus; capture-read-aloud-text waits on it before the
+  // synthetic copy. A press while speaking only stops, which the renderer
+  // decides, so the capture is cheap to start either way.
+  sendToggleReadAloud() {
+    if (this.hotkeyManager.isInListeningMode() || this._onboardingActive) return;
+    if (!this.mainWindow || this.mainWindow.isDestroyed()) return;
+    this._readAloudTargetReady = Promise.all([
+      this.textEditMonitor?.captureTargetPid?.(),
+      this.selectionManager?.captureTarget?.({ force: true }),
+    ]).catch(() => {});
+    this.mainWindow.webContents.send("toggle-read-aloud");
+  }
+
+  async waitForReadAloudTarget() {
+    await this._readAloudTargetReady;
+  }
+
   // The tray's Ask assistant. Only the renderer can open the panel, and only it
   // knows the policy and recording state the pill menu gates the item on, so it
   // decides: nothing is shown or created here, and an accepted command surfaces

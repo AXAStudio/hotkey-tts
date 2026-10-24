@@ -2186,6 +2186,16 @@
       "translationHotkey": {
         "title": "翻译快捷键",
         "description": "用任何语言听写——粘贴的文本会自动翻译"
+      },
+      "readAloudHotkey": {
+        "title": "朗读快捷键",
+        "description": "在任意应用中选中文本，按下即可朗读——再次按下停止",
+        "voice": "语音",
+        "systemVoice": "系统默认",
+        "preview": "试听",
+        "speed": "语速",
+        "speedOption": "{{rate}}×",
+        "sample": "这是选中文本被朗读时的效果。"
       }
     },
     "permissions": {

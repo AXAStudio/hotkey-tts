@@ -1344,6 +1344,32 @@ async function startApp() {
     hotkeyManager.notifyRestoreFailures(savedTranslationKey, result);
   }
 
+  // Set up read aloud hotkey (speaks the selected text; pressing it again
+  // while speaking stops)
+  const isReadAloudPress = createHotkeyRepeatGate();
+  const readAloudHotkeyCallback = () => {
+    if (!isReadAloudPress()) return;
+    windowManager.sendToggleReadAloud();
+  };
+  windowManager._readAloudHotkeyCallback = readAloudHotkeyCallback;
+
+  const savedReadAloudKey = environmentManager.getReadAloudKey?.() || "";
+  if (savedReadAloudKey) {
+    const result = await hotkeyManager.registerSlot(
+      "readAloud",
+      savedReadAloudKey,
+      readAloudHotkeyCallback
+    );
+    if (!result.success) {
+      debugLogger.warn(
+        "Failed to restore read aloud hotkey",
+        { hotkey: savedReadAloudKey },
+        "hotkey"
+      );
+    }
+    hotkeyManager.notifyRestoreFailures(savedReadAloudKey, result);
+  }
+
   // Set up meeting mode hotkey
   const isMeetingPress = createHotkeyRepeatGate();
   const meetingHotkeyCallback = () => {
@@ -1572,7 +1598,16 @@ async function startApp() {
       if (translationUsesGlobe) {
         windowManager.sendToggleTranslation();
       }
-      if (!voiceAgentUsesGlobe && !translationUsesGlobe && !dictationUsesGlobe) {
+      const readAloudUsesGlobe = hotkeyManager.getSlotHotkeys("readAloud").some(isGlobeLikeHotkey);
+      if (readAloudUsesGlobe) {
+        windowManager.sendToggleReadAloud();
+      }
+      if (
+        !voiceAgentUsesGlobe &&
+        !translationUsesGlobe &&
+        !readAloudUsesGlobe &&
+        !dictationUsesGlobe
+      ) {
         debugLogger?.debug("[Globe] Ignored — hotkey is not GLOBE", { currentHotkey });
       }
     });
@@ -1653,6 +1688,9 @@ async function startApp() {
       if (hotkeyManager.slotHasHotkey("translation", modifier)) {
         windowManager.sendToggleTranslation();
       }
+      if (hotkeyManager.slotHasHotkey("readAloud", modifier)) {
+        windowManager.sendToggleReadAloud();
+      }
 
       if (!hotkeyManager.slotHasHotkey("dictation", modifier)) return;
       if (!isLiveWindow(windowManager.mainWindow)) return;
@@ -1718,7 +1756,7 @@ async function startApp() {
       }
     });
 
-    const MAC_NATIVE_HOTKEY_SLOTS = ["dictation", "voiceAgent", "translation"];
+    const MAC_NATIVE_HOTKEY_SLOTS = ["dictation", "voiceAgent", "translation", "readAloud"];
     const syncMacNativeHotkeyConfiguration = () => {
       globeKeyManager.setConfiguration(
         hotkeyManager.getMacNativeListenerConfig(MAC_NATIVE_HOTKEY_SLOTS)
@@ -1740,6 +1778,9 @@ async function startApp() {
       }
       if (hotkeyManager.slotHasHotkey("translation", button)) {
         windowManager.sendToggleTranslation();
+      }
+      if (hotkeyManager.slotHasHotkey("readAloud", button)) {
+        windowManager.sendToggleReadAloud();
       }
 
       if (!hotkeyManager.slotHasHotkey("dictation", button)) return;
@@ -1890,6 +1931,8 @@ async function startApp() {
         windowManager.sendToggleVoiceAgent();
       } else if (hotkeyManager.slotHasHotkey("translation", key)) {
         windowManager.sendToggleTranslation();
+      } else if (hotkeyManager.slotHasHotkey("readAloud", key)) {
+        windowManager.sendToggleReadAloud();
       } else if (hotkeyManager.slotHasHotkey("meeting", key)) {
         windowManager.startManualMeeting({ activate: false });
       }

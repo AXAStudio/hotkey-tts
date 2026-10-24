@@ -82,7 +82,7 @@ OpenWhispr is an Electron-based desktop dictation application that uses whisper.
 - **dragManager.js**: Window dragging functionality
 - **environment.js**: Environment variable and OpenAI API management
 - **hotkeyManager.js**: Global hotkey registration and management
-  - Named hotkey slots: `dictation`, `voiceAgent` (voice assistant — dictation routed to the assistant panel), `translation`, `meeting`
+  - Named hotkey slots: `dictation`, `voiceAgent` (voice assistant — dictation routed to the assistant panel), `translation`, `readAloud` (speaks the selected text), `meeting`
   - Handles platform-specific defaults (GLOBE on macOS, Control+Super on Windows/Linux)
   - Auto-fallback to F8/F9 if default hotkey is unavailable
   - Notifies renderer via IPC when hotkey registration fails
@@ -769,6 +769,10 @@ When "Share screen context" is enabled (Settings → AI Models → Voice Assista
 - IPC: `capture-screen-context`, `check-screen-recording-access`, `request-screen-recording-access`, `open-screen-recording-settings`, `screen-context-set-enabled`
 
 **Tests**: `test/helpers/dictationRouting.test.js`, `test/helpers/screenContextCapture.test.js` (run with `node --test`)
+
+### 17a. Read Aloud Hotkey
+
+An opt-in global hotkey (`readAloudKey` / `READ_ALOUD_KEY`, no default) that speaks the text selected in any app; pressing it again while speaking, or while the selection is still being copied, stops. The `readAloud` callback in `main.js` → `windowManager.sendToggleReadAloud()` captures the target at press time (`textEditMonitor.captureTargetPid` + `selectionManager.captureTarget`) without showing the pill or opening the mic, then sends `toggle-read-aloud` to the dictation window. `useReadAloud` (mounted in `App.jsx`) calls `capture-read-aloud-text`, which waits for that capture and runs `selectionManager.captureSelectedText()` (same synthetic copy and 6,000-character cap as selection edits; only the text is returned), and speaks it with `speechSynthesis` — the OS voices (SAPI/OneCore on Windows, AVSpeechSynthesizer on macOS; Linux needs speech-dispatcher). Settings → Hotkeys → Read Aloud Hotkey picks the voice (`readAloudVoice`, a voiceURI, `""` = system default) and speed (`readAloudRate`, snapped to `READ_ALOUD_RATE_CHOICES`). GNOME/Hyprland bind it through the `ToggleReadAloud` D-Bus method. Pure helpers in `src/utils/readAloud.ts` (`test/utils/readAloud.test.js`).
 
 ### 18. Meeting Transcription: Echo, Duplicate, and Segment Pipeline
 

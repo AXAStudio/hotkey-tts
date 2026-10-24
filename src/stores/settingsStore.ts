@@ -225,6 +225,13 @@ function snapMicWarmHold(value: number): number {
   return (MIC_WARM_HOLD_CHOICES as readonly number[]).includes(value) ? value : 0;
 }
 
+// Speeds offered by the read aloud select; unknown values snap to normal speed.
+export const READ_ALOUD_RATE_CHOICES = [0.75, 1, 1.25, 1.5, 1.75, 2] as const;
+
+export function snapReadAloudRate(value: number): number {
+  return (READ_ALOUD_RATE_CHOICES as readonly number[]).includes(value) ? value : 1;
+}
+
 function readStringArray(key: string, fallback: string[]): string[] {
   if (!isBrowser) return fallback;
   const stored = localStorage.getItem(key);
@@ -342,6 +349,7 @@ const NUMERIC_SETTINGS = new Set([
   "whisperVadMaxSpeechDurationS",
   "whisperVadSpeechPadMs",
   "whisperVadSamplesOverlap",
+  "readAloudRate",
 ]);
 
 const WHISPER_VAD_DEFAULTS = whisperVadConstants.DEFAULTS;
@@ -1219,6 +1227,13 @@ export interface SettingsState
   setVoiceAgentKey: (key: string) => Promise<HotkeyRegistrationResult>;
   translationKey: string;
   setTranslationKey: (key: string) => Promise<HotkeyRegistrationResult>;
+  readAloudKey: string;
+  setReadAloudKey: (key: string) => Promise<HotkeyRegistrationResult>;
+  /** voiceURI of the speechSynthesis voice; "" uses the system default. */
+  readAloudVoice: string;
+  setReadAloudVoice: (voiceURI: string) => void;
+  readAloudRate: number;
+  setReadAloudRate: (rate: number) => void;
   setMeetingHotkeyLayoutMode: (mode: "side-panel" | "full-width") => void;
   setOnboardingUseCases: (useCases: string[]) => void;
   setOnboardingUseCaseNote: (note: string) => void;
@@ -1340,7 +1355,7 @@ function createNumberSetter(key: string) {
 // being persisted. Rolls back to the previous key if registration fails.
 // Resolves to false on failure so optimistic UIs (HotkeyListInput) can revert.
 function createRegisteredHotkeySetter(
-  key: "voiceAgentKey" | "translationKey",
+  key: "voiceAgentKey" | "translationKey" | "readAloudKey",
   label: string,
   getRegisterFn: () => ((hotkey: string) => Promise<HotkeyRegistrationResult>) | undefined,
   fallbackSave?: (hotkey: string) => void
@@ -1625,6 +1640,9 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   meetingKey: readString("meetingKey", ""),
   voiceAgentKey: readString("voiceAgentKey", ""),
   translationKey: readString("translationKey", ""),
+  readAloudKey: readString("readAloudKey", ""),
+  readAloudVoice: readString("readAloudVoice", ""),
+  readAloudRate: snapReadAloudRate(Number(readString("readAloudRate", "1"))),
   onboardingUseCases: readStringArray("onboardingUseCases", []),
   onboardingUseCaseNote: readString("onboardingUseCaseNote", ""),
   spokenLanguages: readStringArray("spokenLanguages", []),
@@ -2363,6 +2381,13 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     "translation hotkey",
     () => window.electronAPI?.updateTranslationHotkey
   ),
+  setReadAloudKey: createRegisteredHotkeySetter(
+    "readAloudKey",
+    "read aloud hotkey",
+    () => window.electronAPI?.updateReadAloudHotkey
+  ),
+  setReadAloudVoice: createStringSetter("readAloudVoice"),
+  setReadAloudRate: (rate: number) => createNumberSetter("readAloudRate")(snapReadAloudRate(rate)),
 
   setMeetingHotkeyLayoutMode: (mode: "side-panel" | "full-width") => {
     if (isBrowser) localStorage.setItem("meetingHotkeyLayoutMode", mode);
@@ -3587,6 +3612,20 @@ export async function initializeSettings(): Promise<void> {
       );
     }
 
+    // Sync read aloud hotkey from main process
+    try {
+      const envKey = await window.electronAPI.getReadAloudKey?.();
+      if (envKey && envKey !== state.readAloudKey) {
+        createStringSetter("readAloudKey")(envKey);
+      }
+    } catch (err) {
+      logger.warn(
+        "Failed to sync read aloud hotkey on startup",
+        { error: (err as Error).message },
+        "settings"
+      );
+    }
+
     try {
       let envMode = await window.electronAPI.getActivationMode?.();
       if (envMode && envMode !== state.activationMode) {
@@ -3829,6 +3868,8 @@ export async function initializeSettings(): Promise<void> {
         // Same whitelist as the setter — a hand-edited localStorage value
         // synced from another window must not exceed the offered durations.
         value = snapMicWarmHold(parsed);
+      } else if (key === "readAloudRate") {
+        value = snapReadAloudRate(parsed);
       } else {
         value = parsed;
       }

@@ -2480,6 +2480,16 @@
       "translationHotkey": {
         "title": "Übersetzungs-Hotkey",
         "description": "Diktiere in beliebiger Sprache — der eingefügte Text kommt übersetzt heraus"
+      },
+      "readAloudHotkey": {
+        "title": "Vorlese-Hotkey",
+        "description": "Markiere Text in einer beliebigen App und drücke, um ihn vorlesen zu lassen – erneut drücken zum Stoppen",
+        "voice": "Stimme",
+        "systemVoice": "Systemstandard",
+        "preview": "Probehören",
+        "speed": "Geschwindigkeit",
+        "speedOption": "{{rate}}×",
+        "sample": "So klingt markierter Text, wenn er vorgelesen wird."
       }
     },
     "permissions": {

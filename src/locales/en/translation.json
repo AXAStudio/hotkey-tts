@@ -2480,6 +2480,16 @@
       "translationHotkey": {
         "title": "Translation Hotkey",
         "description": "Dictate in any language — the pasted text comes out translated"
+      },
+      "readAloudHotkey": {
+        "title": "Read Aloud Hotkey",
+        "description": "Highlight text in any app and press to hear it read aloud — press again to stop",
+        "voice": "Voice",
+        "systemVoice": "System default",
+        "preview": "Preview",
+        "speed": "Speed",
+        "speedOption": "{{rate}}×",
+        "sample": "This is how selected text will sound when it's read aloud."
       }
     },
     "permissions": {

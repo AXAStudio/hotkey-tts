@@ -2480,6 +2480,16 @@
       "translationHotkey": {
         "title": "Raccourci de Traduction",
         "description": "Dictez dans n'importe quelle langue : le texte collé ressort traduit"
+      },
+      "readAloudHotkey": {
+        "title": "Raccourci de lecture à voix haute",
+        "description": "Sélectionnez du texte dans n'importe quelle app et appuyez pour l'écouter — appuyez à nouveau pour arrêter",
+        "voice": "Voix",
+        "systemVoice": "Voix par défaut du système",
+        "preview": "Écouter",
+        "speed": "Vitesse",
+        "speedOption": "{{rate}}×",
+        "sample": "Voici comment le texte sélectionné sonnera à voix haute."
       }
     },
     "permissions": {

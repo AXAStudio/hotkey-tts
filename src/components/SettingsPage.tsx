@@ -95,6 +95,7 @@ import DeveloperSection from "./DeveloperSection";
 import ChatAgentSettings from "./settings/ChatAgentSettings";
 import DictationAgentSettings from "./settings/DictationAgentSettings";
 import DictationTranslationSettings from "./settings/DictationTranslationSettings";
+import ReadAloudSettings from "./settings/ReadAloudSettings";
 import InferenceConfigEditor from "./settings/InferenceConfigEditor";
 import { MeetingTranscriptionPanel } from "./settings/MeetingSettings";
 import { UploadTranscriptionPanel } from "./settings/UploadSettings";
@@ -1270,6 +1271,8 @@ export default function SettingsPage({
   const setVoiceAgentKey = useSettingsStore((s) => s.setVoiceAgentKey);
   const translationKey = useSettingsStore((s) => s.translationKey);
   const setTranslationKey = useSettingsStore((s) => s.setTranslationKey);
+  const readAloudKey = useSettingsStore((s) => s.readAloudKey);
+  const setReadAloudKey = useSettingsStore((s) => s.setReadAloudKey);
 
   const settingsPolicyState = usePolicySnapshot();
   const agentAllowedByPolicy = isAgentAllowed(settingsPolicyState);
@@ -1489,10 +1492,11 @@ export default function SettingsPage({
           "settingsPage.general.meetingHotkey.title": meetingKey,
           "settingsPage.general.voiceAgentHotkey.title": voiceAgentKey,
           "settingsPage.general.translationHotkey.title": translationKey,
+          "settingsPage.general.readAloudHotkey.title": readAloudKey,
         },
         t
       ),
-    [meetingKey, voiceAgentKey, translationKey, t]
+    [meetingKey, voiceAgentKey, translationKey, readAloudKey, t]
   );
 
   const validateMeetingHotkey = useCallback(
@@ -1503,10 +1507,11 @@ export default function SettingsPage({
           "settingsPage.general.hotkey.title": dictationKey,
           "settingsPage.general.voiceAgentHotkey.title": voiceAgentKey,
           "settingsPage.general.translationHotkey.title": translationKey,
+          "settingsPage.general.readAloudHotkey.title": readAloudKey,
         },
         t
       ),
-    [dictationKey, voiceAgentKey, translationKey, t]
+    [dictationKey, voiceAgentKey, translationKey, readAloudKey, t]
   );
 
   const validateVoiceAgentHotkey = useCallback(
@@ -1517,10 +1522,11 @@ export default function SettingsPage({
           "settingsPage.general.hotkey.title": dictationKey,
           "settingsPage.general.meetingHotkey.title": meetingKey,
           "settingsPage.general.translationHotkey.title": translationKey,
+          "settingsPage.general.readAloudHotkey.title": readAloudKey,
         },
         t
       ),
-    [dictationKey, meetingKey, translationKey, t]
+    [dictationKey, meetingKey, translationKey, readAloudKey, t]
   );
 
   const validateTranslationHotkey = useCallback(
@@ -1531,10 +1537,26 @@ export default function SettingsPage({
           "settingsPage.general.hotkey.title": dictationKey,
           "settingsPage.general.meetingHotkey.title": meetingKey,
           "settingsPage.general.voiceAgentHotkey.title": voiceAgentKey,
+          "settingsPage.general.readAloudHotkey.title": readAloudKey,
         },
         t
       ),
-    [dictationKey, meetingKey, voiceAgentKey, t]
+    [dictationKey, meetingKey, voiceAgentKey, readAloudKey, t]
+  );
+
+  const validateReadAloudHotkey = useCallback(
+    (hotkey: string) =>
+      validateHotkeyForSlot(
+        hotkey,
+        {
+          "settingsPage.general.hotkey.title": dictationKey,
+          "settingsPage.general.meetingHotkey.title": meetingKey,
+          "settingsPage.general.voiceAgentHotkey.title": voiceAgentKey,
+          "settingsPage.general.translationHotkey.title": translationKey,
+        },
+        t
+      ),
+    [dictationKey, meetingKey, voiceAgentKey, translationKey, t]
   );
 
   const {
@@ -4053,6 +4075,27 @@ EOF`,
                     maxHotkeys={isUsingNativeShortcut ? 1 : undefined}
                   />
                 </SettingsPanelRow>
+              </SettingsPanel>
+            </div>
+
+            {/* Read Aloud Hotkey */}
+            <div>
+              <SectionHeader
+                title={t("settingsPage.general.readAloudHotkey.title")}
+                description={t("settingsPage.general.readAloudHotkey.description")}
+              />
+              <SettingsPanel>
+                <SettingsPanelRow>
+                  <HotkeyListInput
+                    value={readAloudKey}
+                    onChange={(list) => commitAgentHotkey(setReadAloudKey, list)}
+                    onClear={() => commitAgentHotkey(setReadAloudKey, "")}
+                    validate={validateReadAloudHotkey}
+                    disabled={isAgentHotkeyCommitting}
+                    maxHotkeys={isUsingNativeShortcut ? 1 : undefined}
+                  />
+                </SettingsPanelRow>
+                <ReadAloudSettings />
               </SettingsPanel>
             </div>
 

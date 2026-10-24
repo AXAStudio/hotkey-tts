@@ -2186,6 +2186,16 @@
       "translationHotkey": {
         "title": "Hotkey Traduzione",
         "description": "Detta in qualsiasi lingua: il testo incollato esce tradotto"
+      },
+      "readAloudHotkey": {
+        "title": "Scorciatoia di lettura ad alta voce",
+        "description": "Seleziona del testo in qualsiasi app e premi per ascoltarlo ad alta voce — premi di nuovo per fermare",
+        "voice": "Voce",
+        "systemVoice": "Predefinita di sistema",
+        "preview": "Ascolta",
+        "speed": "Velocità",
+        "speedOption": "{{rate}}×",
+        "sample": "Ecco come suonerà il testo selezionato letto ad alta voce."
       }
     },
     "permissions": {

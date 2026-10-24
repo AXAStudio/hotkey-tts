@@ -12,6 +12,7 @@ import { useOnboardingAssistantDemo } from "./hooks/useOnboardingAssistantDemo";
 import { useLiveTranscriptPanel } from "./hooks/useLiveTranscriptPanel";
 import { useMainWindowSizeOwner } from "./hooks/useMainWindowSizeOwner";
 import { useMainProcessNotifications } from "./hooks/useMainProcessNotifications";
+import { useReadAloud } from "./hooks/useReadAloud";
 import { useListeningEntrancePhase } from "./hooks/useListeningEntrancePhase";
 import { useWindowResizeCompensation } from "./hooks/useWindowResizeCompensation";
 import { useSettingsStore } from "./stores/settingsStore";
@@ -118,6 +119,7 @@ export default function App() {
 
   useWindowResizeCompensation();
   useMainProcessNotifications({ toast, dismiss, t });
+  useReadAloud();
 
   const agentAllowed = usePolicyStore(isAgentAllowed);
   const meetingAllowed = useTranscriptionContextAllowed("meeting");

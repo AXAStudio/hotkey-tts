@@ -2165,6 +2165,16 @@
       "translationHotkey": {
         "title": "Atalho de Tradução",
         "description": "Dite em qualquer idioma: o texto colado sai traduzido"
+      },
+      "readAloudHotkey": {
+        "title": "Atalho de leitura em voz alta",
+        "description": "Selecione texto em qualquer app e pressione para ouvi-lo em voz alta — pressione de novo para parar",
+        "voice": "Voz",
+        "systemVoice": "Padrão do sistema",
+        "preview": "Ouvir",
+        "speed": "Velocidade",
+        "speedOption": "{{rate}}×",
+        "sample": "É assim que o texto selecionado vai soar quando for lido em voz alta."
       }
     },
     "permissions": {

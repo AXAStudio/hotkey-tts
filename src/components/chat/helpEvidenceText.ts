@@ -10,6 +10,7 @@ const factLabels: Record<string, string> = {
   dictationKey: "settingsPage.general.hotkey.title",
   voiceAgentKey: "settingsPage.general.voiceAgentHotkey.title",
   translationKey: "settingsPage.general.translationHotkey.title",
+  readAloudKey: "settingsPage.general.readAloudHotkey.title",
   meetingKey: "settingsPage.general.meetingHotkey.title",
   activationMode: "settingsPage.general.hotkey.activationMode",
   microphoneSelectionMode: "microphoneSettings.inputDevice",
@@ -86,7 +87,10 @@ export function helpFactLabel(key: string, t: TFunction): string {
 
 export function helpFactValue(value: string, t: TFunction, key?: string, locale?: string): string {
   if (value === "Unknown" || value === "unknown") return t("common.unknown");
-  if (key && ["dictationKey", "voiceAgentKey", "translationKey", "meetingKey"].includes(key))
+  if (
+    key &&
+    ["dictationKey", "voiceAgentKey", "translationKey", "readAloudKey", "meetingKey"].includes(key)
+  )
     return formatHotkeyListLabel(value);
   if (key === "platform")
     return (

@@ -23,6 +23,7 @@ export function projectHelpSettings(
     add("dictationKey", state.activeDictationKey || state.dictationKey);
     add("voiceAgentKey", state.voiceAgentKey);
     add("translationKey", state.translationKey);
+    add("readAloudKey", state.readAloudKey);
     add("meetingKey", state.meetingKey);
     add("activationMode", state.activationMode);
   }

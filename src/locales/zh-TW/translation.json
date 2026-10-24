@@ -2186,6 +2186,16 @@
       "translationHotkey": {
         "title": "翻譯快捷鍵",
         "description": "用任何語言聽寫——貼上的文字會自動翻譯"
+      },
+      "readAloudHotkey": {
+        "title": "朗讀快捷鍵",
+        "description": "在任何應用程式中選取文字，按下即可朗讀——再次按下停止",
+        "voice": "語音",
+        "systemVoice": "系統預設",
+        "preview": "試聽",
+        "speed": "語速",
+        "speedOption": "{{rate}}×",
+        "sample": "這是選取的文字被朗讀時的效果。"
       }
     },
     "permissions": {

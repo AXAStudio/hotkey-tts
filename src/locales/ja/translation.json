@@ -2186,6 +2186,16 @@
       "translationHotkey": {
         "title": "翻訳ホットキー",
         "description": "どの言語で話しても、貼り付けられるテキストは翻訳済みになります"
+      },
+      "readAloudHotkey": {
+        "title": "読み上げホットキー",
+        "description": "任意のアプリでテキストを選択して押すと読み上げます。もう一度押すと停止します",
+        "voice": "音声",
+        "systemVoice": "システムのデフォルト",
+        "preview": "試聴",
+        "speed": "速度",
+        "speedOption": "{{rate}}×",
+        "sample": "選択したテキストはこのように読み上げられます。"
       }
     },
     "permissions": {
