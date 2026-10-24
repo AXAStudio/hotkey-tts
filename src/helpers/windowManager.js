@@ -1222,9 +1222,10 @@ class WindowManager {
   // the pill or opening the mic. The target is captured at press time, before
   // anything can move focus; capture-read-aloud-text waits on it before the
   // synthetic copy. A press while speaking only stops, which the renderer
-  // decides, so the capture is cheap to start either way.
+  // decides, so the capture is cheap to start either way. It needs no mic,
+  // model or account, so unlike dictation it also works during onboarding.
   sendToggleReadAloud() {
-    if (this.hotkeyManager.isInListeningMode() || this._onboardingActive) return;
+    if (this.hotkeyManager.isInListeningMode()) return;
     if (!this.mainWindow || this.mainWindow.isDestroyed()) return;
     this._readAloudTargetReady = Promise.all([
       this.textEditMonitor?.captureTargetPid?.(),
